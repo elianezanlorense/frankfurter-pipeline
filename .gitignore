@@ -1,0 +1,4 @@
+bootstrap/state/
+.terraform/
+*.tfstate
+*.tfstate.*
