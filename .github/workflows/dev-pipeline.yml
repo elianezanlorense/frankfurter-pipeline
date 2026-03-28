@@ -82,5 +82,5 @@ jobs:
         working-directory: ./bootstrap/state
 
       - name: Terraform Apply Dev
-        run: terraform apply -auto-approve -var-file=../../envs/dev/terraform.tfvars
+        run: terraform apply -auto-approve -var-file=../../env/dev/terraform.tfvars
         working-directory: ./bootstrap/state
