@@ -13,6 +13,10 @@ variable "location" {
   default = "EU"
 }
 
-variable "bucket_name" {
-  type = string
+variable "data_lake_bucket_name" {
+  type    = string
+}
+
+variable "bigquery_dataset" {
+  type    = string
 }
