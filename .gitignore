@@ -5,3 +5,4 @@ bootstrap/state/*.tfstate.*
 *.tfstate
 *.tfstate.*
 bootstrap/state/.terraform.lock.hcl
+.csv
