@@ -1,0 +1,41 @@
+name: Terraform Validate
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - dev
+  pull_request:
+    branches-ignore:
+      - main
+      - dev
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.11.1
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        working-directory: ./bootstrap/state
+
+      - name: Terraform Init
+        run: terraform init -backend=false
+        working-directory: ./bootstrap/state
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: ./bootstrap/state

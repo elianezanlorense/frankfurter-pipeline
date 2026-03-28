@@ -1,4 +1,8 @@
-bootstrap/state/
+bootstrap/state/.terraform/
+bootstrap/state/*.tfstate
+bootstrap/state/*.tfstate.*
 .terraform/
 *.tfstate
 *.tfstate.*
+bootstrap/state/.terraform.lock.hcl
+.csv
