@@ -24,15 +24,15 @@ jobs:
 
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
-        working-directory: ./terraform
+        working-directory: ./bootstrap/state
 
       - name: Terraform Init
         run: terraform init -backend=false
-        working-directory: ./terraform
+        working-directory: ./bootstrap/state
 
       - name: Terraform Validate
         run: terraform validate
-        working-directory: ./terraform
+        working-directory: ./bootstrap/state
 
   plan:
     runs-on: ubuntu-latest
@@ -53,11 +53,11 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
-        working-directory: ./terraform
+        working-directory: ./bootstrap/state
 
       - name: Terraform Plan Dev
         run: terraform plan -var-file=envs/dev/terraform.tfvars
-        working-directory: ./terraform
+        working-directory: ./bootstrap/state
 
   apply-dev:
     runs-on: ubuntu-latest
@@ -79,8 +79,8 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
-        working-directory: ./terraform
+        working-directory: ./bootstrap/state
 
       - name: Terraform Apply Dev
         run: terraform apply -auto-approve -var-file=envs/dev/terraform.tfvars
-        working-directory: ./terraform
+        working-directory: ./bootstrap/state
