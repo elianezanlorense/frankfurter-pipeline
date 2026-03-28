@@ -1,5 +1,6 @@
 variable "project_id" {
-  type = string
+  type    = string
+  default = "frankfurter-pipeline"
 }
 
 variable "region" {
