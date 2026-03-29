@@ -90,3 +90,64 @@ Happy modeling!
 [0m15:35:36.982914 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x107908fd0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x11cdeac70>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x119bb2400>]}
 [0m15:35:36.983621 [debug] [MainThread]: Flushing usage events
 [0m15:35:37.579559 [debug] [MainThread]: An error was encountered while trying to flush usage events
+[0m18:13:51.256678 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x104646f70>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x106116520>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x106116340>]}
+
+
+============================== 18:13:51.259015 | 4b9b83f8-fe1d-4f9c-a891-9ee822afc3de ==============================
+[0m18:13:51.259015 [info ] [MainThread]: Running with dbt=1.11.0-b3
+[0m18:13:51.259289 [debug] [MainThread]: running dbt with arguments {'profiles_dir': '/Users/eli/.dbt', 'introspect': 'True', 'log_cache_events': 'False', 'log_path': 'logs', 'partial_parse': 'True', 'use_experimental_parser': 'False', 'quiet': 'False', 'target_path': 'None', 'send_anonymous_usage_stats': 'True', 'empty': 'None', 'printer_width': '80', 'debug': 'False', 'use_colors': 'True', 'warn_error': 'None', 'invocation_command': 'dbt debug', 'no_print': 'None', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'fail_fast': 'False', 'indirect_selection': 'eager', 'write_json': 'True', 'static_parser': 'True', 'version_check': 'True', 'log_format': 'default', 'cache_selected_only': 'False'}
+[0m18:13:51.266199 [info ] [MainThread]: dbt version: 1.11.0-b3
+[0m18:13:51.266379 [info ] [MainThread]: python version: 3.9.6
+[0m18:13:51.266546 [info ] [MainThread]: python path: /Library/Developer/CommandLineTools/usr/bin/python3
+[0m18:13:51.266676 [info ] [MainThread]: os info: macOS-15.7.4-arm64-arm-64bit
+[0m18:13:52.561427 [info ] [MainThread]: Using profiles dir at /Users/eli/.dbt
+[0m18:13:52.561689 [info ] [MainThread]: Using profiles.yml file at /Users/eli/.dbt/profiles.yml
+[0m18:13:52.561823 [info ] [MainThread]: Using dbt_project.yml file at /Users/eli/franktfurter-pipeline/dbt_project.yml
+[0m18:13:52.561956 [info ] [MainThread]: adapter type: bigquery
+[0m18:13:52.562077 [info ] [MainThread]: adapter version: 1.10.2
+[0m18:13:52.562207 [info ] [MainThread]: Configuration:
+[0m18:13:52.562323 [info ] [MainThread]:   profiles.yml file [[32mOK found and valid[0m]
+[0m18:13:52.562435 [info ] [MainThread]:   dbt_project.yml file [[31mERROR not found[0m]
+[0m18:13:52.562549 [info ] [MainThread]: Required dependencies:
+[0m18:13:52.562705 [debug] [MainThread]: Executing "git --help"
+[0m18:13:52.578658 [debug] [MainThread]: STDOUT: "b"usage: git [-v | --version] [-h | --help] [-C <path>] [-c <name>=<value>]\n           [--exec-path[=<path>]] [--html-path] [--man-path] [--info-path]\n           [-p | --paginate | -P | --no-pager] [--no-replace-objects] [--bare]\n           [--git-dir=<path>] [--work-tree=<path>] [--namespace=<name>]\n           [--super-prefix=<path>] [--config-env=<name>=<envvar>]\n           <command> [<args>]\n\nThese are common Git commands used in various situations:\n\nstart a working area (see also: git help tutorial)\n   clone     Clone a repository into a new directory\n   init      Create an empty Git repository or reinitialize an existing one\n\nwork on the current change (see also: git help everyday)\n   add       Add file contents to the index\n   mv        Move or rename a file, a directory, or a symlink\n   restore   Restore working tree files\n   rm        Remove files from the working tree and from the index\n\nexamine the history and state (see also: git help revisions)\n   bisect    Use binary search to find the commit that introduced a bug\n   diff      Show changes between commits, commit and working tree, etc\n   grep      Print lines matching a pattern\n   log       Show commit logs\n   show      Show various types of objects\n   status    Show the working tree status\n\ngrow, mark and tweak your common history\n   branch    List, create, or delete branches\n   commit    Record changes to the repository\n   merge     Join two or more development histories together\n   rebase    Reapply commits on top of another base tip\n   reset     Reset current HEAD to the specified state\n   switch    Switch branches\n   tag       Create, list, delete or verify a tag object signed with GPG\n\ncollaborate (see also: git help workflows)\n   fetch     Download objects and refs from another repository\n   pull      Fetch from and integrate with another repository or a local branch\n   push      Update remote refs along with associated objects\n\n'git help -a' and 'git help -g' list available subcommands and some\nconcept guides. See 'git help <command>' or 'git help <concept>'\nto read about a specific subcommand or concept.\nSee 'git help git' for an overview of the system.\n""
+[0m18:13:52.579168 [debug] [MainThread]: STDERR: "b''"
+[0m18:13:52.579367 [info ] [MainThread]:  - git [[32mOK found[0m]
+
+[0m18:13:52.579522 [info ] [MainThread]: Connection:
+[0m18:13:52.579705 [info ] [MainThread]:   method: oauth
+[0m18:13:52.579828 [info ] [MainThread]:   database: frankfurter-pipeline
+[0m18:13:52.579941 [info ] [MainThread]:   execution_project: frankfurter-pipeline
+[0m18:13:52.580054 [info ] [MainThread]:   schema: frankfurter_dev
+[0m18:13:52.580166 [info ] [MainThread]:   location: EU
+[0m18:13:52.580286 [info ] [MainThread]:   priority: interactive
+[0m18:13:52.580398 [info ] [MainThread]:   maximum_bytes_billed: None
+[0m18:13:52.580509 [info ] [MainThread]:   impersonate_service_account: None
+[0m18:13:52.580620 [info ] [MainThread]:   job_retry_deadline_seconds: None
+[0m18:13:52.580730 [info ] [MainThread]:   job_retries: 1
+[0m18:13:52.580843 [info ] [MainThread]:   job_creation_timeout_seconds: None
+[0m18:13:52.580953 [info ] [MainThread]:   job_execution_timeout_seconds: 1
+[0m18:13:52.581063 [info ] [MainThread]:   timeout_seconds: 1
+[0m18:13:52.581173 [info ] [MainThread]:   client_id: None
+[0m18:13:52.581282 [info ] [MainThread]:   token_uri: None
+[0m18:13:52.581391 [info ] [MainThread]:   compute_region: None
+[0m18:13:52.581500 [info ] [MainThread]:   dataproc_cluster_name: None
+[0m18:13:52.581608 [info ] [MainThread]:   gcs_bucket: None
+[0m18:13:52.581719 [info ] [MainThread]:   dataproc_batch: None
+[0m18:13:52.582048 [info ] [MainThread]: Registered adapter: bigquery=1.10.2
+[0m18:13:52.698569 [debug] [MainThread]: Acquiring new bigquery connection 'debug'
+[0m18:13:52.698877 [debug] [MainThread]: On debug: select 1 as id
+[0m18:13:52.699032 [debug] [MainThread]: Opening a new connection, currently in state init
+[0m18:13:53.861734 [debug] [MainThread]: BigQuery adapter: https://console.cloud.google.com/bigquery?project=frankfurter-pipeline&j=bq:EU:43afe8a1-541b-4d17-a5cd-acc1c8337cdc&page=queryresults
+[0m18:13:54.230121 [info ] [MainThread]:   Connection test: [[32mOK connection ok[0m]
+
+[0m18:13:54.230734 [info ] [MainThread]: [31m1 check failed:[0m
+[0m18:13:54.231096 [info ] [MainThread]: Project loading failed for the following reason:
+ project path </Users/eli/franktfurter-pipeline/dbt_project.yml> not found
+
+[0m18:13:54.235942 [debug] [MainThread]: Resource report: {"command_name": "debug", "command_success": false, "command_wall_clock_time": 3.0139368, "process_in_blocks": "0", "process_kernel_time": 0.302901, "process_mem_max_rss": "349569024", "process_out_blocks": "0", "process_user_time": 1.462426}
+[0m18:13:54.236647 [debug] [MainThread]: Command `dbt debug` failed at 18:13:54.236511 after 3.01 seconds
+[0m18:13:54.237118 [debug] [MainThread]: Connection 'debug' was properly closed.
+[0m18:13:54.237601 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x104646f70>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x132ffe700>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x132ffe8e0>]}
+[0m18:13:54.238106 [debug] [MainThread]: Flushing usage events
+[0m18:13:54.790203 [debug] [MainThread]: An error was encountered while trying to flush usage events
