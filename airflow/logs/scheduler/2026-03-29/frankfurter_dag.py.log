@@ -3009,3 +3009,24 @@ IndentationError: expected an indented block
 [2026-03-29T16:19:31.495+0000] {logging_mixin.py:188} INFO - [2026-03-29T16:19:31.495+0000] {dag.py:3036} INFO - Sync 1 DAGs
 [2026-03-29T16:19:31.502+0000] {logging_mixin.py:188} INFO - [2026-03-29T16:19:31.502+0000] {dag.py:3823} INFO - Setting next_dagrun for frankfurter_exchange_rates to 2026-03-29 00:00:00+00:00, run_after=2026-03-30 00:00:00+00:00
 [2026-03-29T16:19:31.507+0000] {processor.py:183} INFO - Processing /opt/airflow/dags/frankfurter_dag.py took 0.348 seconds
+[2026-03-29T16:20:01.854+0000] {processor.py:161} INFO - Started process (PID=2154) to work on /opt/airflow/dags/frankfurter_dag.py
+[2026-03-29T16:20:01.855+0000] {processor.py:830} INFO - Processing file /opt/airflow/dags/frankfurter_dag.py for tasks to queue
+[2026-03-29T16:20:01.856+0000] {logging_mixin.py:188} INFO - [2026-03-29T16:20:01.856+0000] {dagbag.py:538} INFO - Filling up the DagBag from /opt/airflow/dags/frankfurter_dag.py
+[2026-03-29T16:20:02.166+0000] {processor.py:840} INFO - DAG(s) 'frankfurter_exchange_rates' retrieved from /opt/airflow/dags/frankfurter_dag.py
+[2026-03-29T16:20:02.175+0000] {logging_mixin.py:188} INFO - [2026-03-29T16:20:02.175+0000] {dag.py:3036} INFO - Sync 1 DAGs
+[2026-03-29T16:20:02.182+0000] {logging_mixin.py:188} INFO - [2026-03-29T16:20:02.182+0000] {dag.py:3823} INFO - Setting next_dagrun for frankfurter_exchange_rates to 2026-03-29 00:00:00+00:00, run_after=2026-03-30 00:00:00+00:00
+[2026-03-29T16:20:02.186+0000] {processor.py:183} INFO - Processing /opt/airflow/dags/frankfurter_dag.py took 0.338 seconds
+[2026-03-29T16:20:32.428+0000] {processor.py:161} INFO - Started process (PID=2160) to work on /opt/airflow/dags/frankfurter_dag.py
+[2026-03-29T16:20:32.429+0000] {processor.py:830} INFO - Processing file /opt/airflow/dags/frankfurter_dag.py for tasks to queue
+[2026-03-29T16:20:32.430+0000] {logging_mixin.py:188} INFO - [2026-03-29T16:20:32.430+0000] {dagbag.py:538} INFO - Filling up the DagBag from /opt/airflow/dags/frankfurter_dag.py
+[2026-03-29T16:20:32.767+0000] {processor.py:840} INFO - DAG(s) 'frankfurter_exchange_rates' retrieved from /opt/airflow/dags/frankfurter_dag.py
+[2026-03-29T16:20:32.776+0000] {logging_mixin.py:188} INFO - [2026-03-29T16:20:32.776+0000] {dag.py:3036} INFO - Sync 1 DAGs
+[2026-03-29T16:20:32.783+0000] {logging_mixin.py:188} INFO - [2026-03-29T16:20:32.783+0000] {dag.py:3823} INFO - Setting next_dagrun for frankfurter_exchange_rates to 2026-03-29 00:00:00+00:00, run_after=2026-03-30 00:00:00+00:00
+[2026-03-29T16:20:32.788+0000] {processor.py:183} INFO - Processing /opt/airflow/dags/frankfurter_dag.py took 0.368 seconds
+[2026-03-29T16:21:03.100+0000] {processor.py:161} INFO - Started process (PID=2166) to work on /opt/airflow/dags/frankfurter_dag.py
+[2026-03-29T16:21:03.103+0000] {processor.py:830} INFO - Processing file /opt/airflow/dags/frankfurter_dag.py for tasks to queue
+[2026-03-29T16:21:03.105+0000] {logging_mixin.py:188} INFO - [2026-03-29T16:21:03.104+0000] {dagbag.py:538} INFO - Filling up the DagBag from /opt/airflow/dags/frankfurter_dag.py
+[2026-03-29T16:21:03.430+0000] {processor.py:840} INFO - DAG(s) 'frankfurter_exchange_rates' retrieved from /opt/airflow/dags/frankfurter_dag.py
+[2026-03-29T16:21:03.442+0000] {logging_mixin.py:188} INFO - [2026-03-29T16:21:03.441+0000] {dag.py:3036} INFO - Sync 1 DAGs
+[2026-03-29T16:21:03.453+0000] {logging_mixin.py:188} INFO - [2026-03-29T16:21:03.453+0000] {dag.py:3823} INFO - Setting next_dagrun for frankfurter_exchange_rates to 2026-03-29 00:00:00+00:00, run_after=2026-03-30 00:00:00+00:00
+[2026-03-29T16:21:03.461+0000] {processor.py:183} INFO - Processing /opt/airflow/dags/frankfurter_dag.py took 0.368 seconds
