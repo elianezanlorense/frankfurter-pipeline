@@ -1,12 +1,12 @@
-name: Terraform Dev
+name: Terraform Pipeline
 
 on:
   push:
     branches:
-      - test-ci
+      - '*'
 
 jobs:
-  validate:
+  bootstrap-validate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -20,7 +20,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.11.1
+          terraform_version: "1.11.1"
 
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
@@ -34,34 +34,9 @@ jobs:
         run: terraform validate
         working-directory: ./bootstrap/state
 
-  plan:
+  bootstrap-apply:
     runs-on: ubuntu-latest
-    needs: validate
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.11.1
-
-      - name: Terraform Init
-        run: terraform init
-        working-directory: ./bootstrap/state
-
-      - name: Terraform Plan Dev
-        run: terraform plan -var-file=terraform.tfvars
-        working-directory: ./bootstrap/state
-
-  apply-dev:
-    runs-on: ubuntu-latest
-    needs: plan
+    needs: bootstrap-validate
     environment: dev
     steps:
       - name: Checkout
@@ -75,12 +50,88 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.11.1
+          terraform_version: "1.11.1"
+
+      - name: Terraform Init
+        run: terraform init -reconfigure
+        working-directory: ./bootstrap/state
+
+      - name: Terraform Apply Bootstrap
+        run: terraform apply -auto-approve -var-file=terraform.tfvars
+        working-directory: ./bootstrap/state
+
+  terraform-validate:
+    runs-on: ubuntu-latest
+    needs: bootstrap-apply
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.11.1"
 
       - name: Terraform Init
         run: terraform init
-        working-directory: ./bootstrap/state
+        working-directory: ./terraform
 
-      - name: Terraform Apply Dev
-        run: terraform apply -auto-approve -var-file=terraform.tfvars
-        working-directory: ./bootstrap/state
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: ./terraform
+
+  terraform-plan:
+    runs-on: ubuntu-latest
+    needs: terraform-validate
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.11.1"
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ./terraform
+
+      - name: Terraform Plan
+        run: terraform plan -var-file=env/dev/terraform.tfvars
+        working-directory: ./terraform
+
+  terraform-apply:
+    runs-on: ubuntu-latest
+    needs: terraform-plan
+    environment: dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.11.1"
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ./terraform
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve -var-file=env/dev/terraform.tfvars
+        working-directory: ./terraform
