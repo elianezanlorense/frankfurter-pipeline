@@ -5,4 +5,7 @@ bootstrap/state/*.tfstate.*
 *.tfstate
 *.tfstate.*
 bootstrap/state/.terraform.lock.hcl
-.csv
+.csvdbt/logs/
+dbt/target/
+dbt/logs/
+dbt/target/
