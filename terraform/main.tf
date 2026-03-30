@@ -90,9 +90,9 @@ resource "google_compute_instance" "airflow_vm" {
     }
   }
 
-  metadata = {
-    ssh-keys = "${var.ssh_user}:${var.ssh_public_key}"
-  }
+ # metadata = {
+  #  ssh-keys = "${var.ssh_user}:${var.ssh_public_key}"
+  #}
 
   tags = ["airflow"]
 
