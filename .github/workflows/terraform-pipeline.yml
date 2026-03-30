@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - "*"
+      
+concurrency:
+  group: terraform-infra
+  cancel-in-progress: false
 
 jobs:
   terraform:
