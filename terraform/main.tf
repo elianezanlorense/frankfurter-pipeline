@@ -35,6 +35,7 @@ resource "google_bigquery_dataset" "dataset" {
   dataset_id = var.bigquery_dataset
   project    = var.project_id
   location   = var.location
+  delete_contents_on_destroy = true 
 }
 
 resource "google_bigquery_table" "exchange_rates" {
