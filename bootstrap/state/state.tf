@@ -8,7 +8,7 @@ terraform {
   }
 
   backend "gcs" {
-    bucket = "frankfurter-tf-state"
+   bucket = "frankfurter-tf-state"
     prefix = "bootstrap/state"
   }
 }
@@ -22,7 +22,7 @@ resource "google_storage_bucket" "terraform_state" {
   name                        = var.bucket_name
   location                    = var.location
   uniform_bucket_level_access = true
-  force_destroy               = false
+  force_destroy               = true
 
   versioning {
     enabled = true
