@@ -52,11 +52,8 @@ jobs:
         with:
           terraform_version: "1.11.1"
 
-      - name: Remove backend config temporarily
-        run: |
-          sed -i 's/backend "gcs"/#backend "gcs"/' state.tf
-          sed -i 's/bucket = "frankfurter-tf-state"/#bucket = "frankfurter-tf-state"/' state.tf
-          sed -i 's/prefix = "bootstrap\/state"/#prefix = "bootstrap\/state"/' state.tf
+      - name: Remove backend temporarily
+        run: rm -f backend.tf
         working-directory: ./bootstrap/state
 
       - name: Terraform Init
@@ -67,11 +64,16 @@ jobs:
         run: terraform apply -auto-approve -var-file=terraform.tfvars
         working-directory: ./bootstrap/state
 
-      - name: Restore backend config
+      - name: Restore backend
         run: |
-          sed -i 's/#backend "gcs"/backend "gcs"/' state.tf
-          sed -i 's/#bucket = "frankfurter-tf-state"/bucket = "frankfurter-tf-state"/' state.tf
-          sed -i 's/#prefix = "bootstrap\/state"/prefix = "bootstrap\/state"/' state.tf
+          cat > backend.tf << 'BACKEND'
+          terraform {
+            backend "gcs" {
+              bucket = "frankfurter-tf-state"
+              prefix = "bootstrap/state"
+            }
+          }
+          BACKEND
         working-directory: ./bootstrap/state
 
       - name: Migrate state to GCS
