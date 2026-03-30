@@ -97,7 +97,7 @@ resource "google_compute_instance" "airflow_vm" {
   tags = ["airflow"]
 
   service_account {
-    email  = var.service_account_email
+    #email  = var.service_account_email
     scopes = ["cloud-platform"]
   }
 }

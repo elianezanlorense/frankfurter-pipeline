@@ -53,7 +53,3 @@ variable "ssh_user" {
 variable "ssh_public_key" {
   type = string
 }
-
-variable "service_account_email" {
-  type = string
-}
