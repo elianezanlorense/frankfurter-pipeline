@@ -1,0 +1,38 @@
+name: Bootstrap Terraform
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.11.1"
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        working-directory: ./bootstrap/state
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ./bootstrap/state
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: ./bootstrap/state
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve -var-file=terraform.tfvars
+        working-directory: ./bootstrap/state
