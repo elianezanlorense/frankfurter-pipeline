@@ -47,7 +47,7 @@ variable "vm_disk_size" {
 }
 
 variable "ssh_user" {
-  type = string
+  type    = string
   default = "ubuntu"
 }
 
