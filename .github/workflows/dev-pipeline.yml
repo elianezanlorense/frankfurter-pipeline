@@ -3,7 +3,7 @@ name: Terraform Dev
 on:
   push:
     branches:
-      - test-ci
+      - '*'
 
 jobs:
   validate:
@@ -20,7 +20,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.11.1
+          terraform_version: "1.11.1"
 
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
@@ -49,7 +49,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.11.1
+          terraform_version: "1.11.1"
 
       - name: Terraform Init
         run: terraform init
@@ -75,7 +75,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.11.1
+          terraform_version: "1.11.1"
 
       - name: Terraform Init
         run: terraform init
