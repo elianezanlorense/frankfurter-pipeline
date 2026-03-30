@@ -21,14 +21,31 @@ resource "google_storage_bucket" "terraform_state" {
   force_destroy               = true
 }
 
+resource "google_service_account" "terraform_runner" {
+  account_id   = "github-actions-tf"
+  display_name = "GitHub Actions Terraform Runner"
+}
+
 resource "google_project_iam_member" "terraform_compute_instance_admin" {
   project = var.project_id
   role    = "roles/compute.instanceAdmin.v1"
-  member  = "serviceAccount:${var.terraform_runner_sa_email}"
+  member  = "serviceAccount:${google_service_account.terraform_runner.email}"
 }
 
 resource "google_project_iam_member" "terraform_compute_security_admin" {
   project = var.project_id
   role    = "roles/compute.securityAdmin"
-  member  = "serviceAccount:${var.terraform_runner_sa_email}"
+  member  = "serviceAccount:${google_service_account.terraform_runner.email}"
+}
+
+resource "google_project_iam_member" "terraform_storage_admin" {
+  project = var.project_id
+  role    = "roles/storage.admin"
+  member  = "serviceAccount:${google_service_account.terraform_runner.email}"
+}
+
+resource "google_project_iam_member" "terraform_bigquery_admin" {
+  project = var.project_id
+  role    = "roles/bigquery.admin"
+  member  = "serviceAccount:${google_service_account.terraform_runner.email}"
 }

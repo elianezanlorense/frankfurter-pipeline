@@ -17,8 +17,6 @@ variable "bucket_name" {
   type = string
 }
 
-variable "terraform_runner_sa_email" {
-  type = string
-  # exemplo:
-  # github-actions-tf@frankfurter-pipeline.iam.gserviceaccount.com
-}
+#variable "terraform_runner_sa_email" {
+ # type = string
+#}
