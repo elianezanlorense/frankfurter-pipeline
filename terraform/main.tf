@@ -67,3 +67,51 @@ resource "google_bigquery_table" "exchange_rates" {
 
   deletion_protection = false
 }
+
+
+resource "google_compute_instance" "airflow_vm" {
+  name         = var.vm_name
+  machine_type = var.vm_machine_type
+  zone         = var.zone
+  project      = var.project_id
+
+  boot_disk {
+    initialize_params {
+      image = var.vm_image
+      size  = var.vm_disk_size
+      type  = "pd-standard"
+    }
+  }
+
+  network_interface {
+    network = "default"
+
+    access_config {
+    }
+  }
+
+  metadata = {
+    ssh-keys = "${var.ssh_user}:${var.ssh_public_key}"
+  }
+
+  tags = ["airflow"]
+
+  service_account {
+    email  = var.service_account_email
+    scopes = ["cloud-platform"]
+  }
+}
+
+resource "google_compute_firewall" "allow_airflow" {
+  name    = "allow-airflow-ui"
+  network = "default"
+  project = var.project_id
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8080", "22"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["airflow"]
+}
