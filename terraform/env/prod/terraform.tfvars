@@ -1,1 +1,0 @@
-bucket_name = "frankfurter-tf-state"
