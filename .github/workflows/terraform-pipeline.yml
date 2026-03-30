@@ -53,7 +53,7 @@ jobs:
           terraform_version: "1.11.1"
 
       - name: Terraform Init
-        run: terraform init -reconfigure
+        run: terraform init -backend=false
         working-directory: ./bootstrap/state
 
       - name: Terraform Apply Bootstrap
