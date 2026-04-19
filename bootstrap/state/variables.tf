@@ -1,6 +1,6 @@
 variable "project_id" {
   type    = string
-  default = "frankfurter-pipeline"
+  default = "zoocamp-project"
 }
 
 variable "region" {
@@ -13,10 +13,25 @@ variable "location" {
   default = "EU"
 }
 
-variable "bucket_name" {
+#variable "bucket_name" {
+ # type = string
+#}
+
+variable "project_number" {
   type = string
 }
 
-#variable "terraform_runner_sa_email" {
- # type = string
-#}
+variable "github_repository" {
+  type = string
+  # exemplo: "seu-user-ou-org/seu-repo"
+}
+
+variable "workload_identity_pool_id" {
+  type    = string
+  default = "github-pool"
+}
+
+variable "workload_identity_provider_id" {
+  type    = string
+  default = "github-provider"
+}

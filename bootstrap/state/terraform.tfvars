@@ -1,2 +1,3 @@
-bucket_name = "frankfurter-tf-state"
-#terraform_runner_sa_email = "github-actions-tf@frankfurter-pipeline.iam.gserviceaccount.com"
+#bucket_name = "frankfurter-tf-state"'
+project_number = "198485878590"
+github_repository = "elianezanlorense/franktfurter-pipeline"

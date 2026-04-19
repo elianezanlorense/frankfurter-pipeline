@@ -1,1 +1,31 @@
 teste ci
+gcloud storage rm -r gs://frankfurter-tf-state
+gcloud storage rm -r gs://frankfurter-data-lake-dev
+gsutil ls
+
+gsutil ls
+gcloud iam service-accounts list
+
+gcloud iam service-accounts delete github-actions-tf@frankfurter-pipeline.iam.gserviceaccount.com
+terraform apply
+
+gcloud compute instances list
+gcloud compute firewall-rules list --filter="name=allow-airflow-ui"
+bq ls frankfurter-pipeline:
+
+terraform state rm google_storage_bucket.data_lake
+terraform apply
+gsutil rm gs://frankfurter-tf-state/terraform/state/default.tflock
+
+
+# VM
+gcloud compute instances delete airflow-vm --zone=europe-west1-b --quiet
+
+# Firewall
+gcloud compute firewall-rules delete allow-airflow-ui --quiet
+
+# BigQuery
+bq rm -r -f frankfurter-pipeline:frankfurter_dev
+
+# GCS data lake
+gcloud storage rm -r gs://frankfurter-data-lake-dev
