@@ -7,6 +7,10 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      id-token: write
+
     defaults:
       run:
         working-directory: ./terraform
@@ -22,7 +26,23 @@ jobs:
         run: terraform fmt -check -recursive
 
       - name: Terraform Init (sem backend)
+        if: github.ref != 'refs/heads/dev'
         run: terraform init -backend=false
 
       - name: Terraform Validate
         run: terraform validate
+
+      - name: Authenticate to GCP
+        if: github.ref == 'refs/heads/dev'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: github-actions-tf@frankfurter-pipeline.iam.gserviceaccount.com
+
+      - name: Terraform Init (com backend)
+        if: github.ref == 'refs/heads/dev'
+        run: terraform init -reconfigure
+
+      - name: Terraform Plan
+        if: github.ref == 'refs/heads/dev'
+        run: terraform plan -var-file=terraform.tfvars
