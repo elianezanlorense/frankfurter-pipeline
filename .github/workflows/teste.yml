@@ -2,6 +2,8 @@ name: Terraform CI
 
 on:
   push:
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   terraform:
@@ -46,3 +48,7 @@ jobs:
       - name: Terraform Plan
         if: github.ref == 'refs/heads/dev'
         run: terraform plan -var-file=terraform.tfvars
+
+      - name: Terraform Apply
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev'
+        run: terraform apply -auto-approve -var-file=terraform.tfvars
