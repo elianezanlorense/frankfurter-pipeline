@@ -8,7 +8,7 @@ terraform {
   }
 
   backend "gcs" {
-    bucket = "frankfurter-tf-state"
+    bucket = "zoocamp-project-tf-state"
     prefix = "terraform/state"
   }
 }
