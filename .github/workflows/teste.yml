@@ -28,9 +28,8 @@ jobs:
         run: terraform fmt -check -recursive
 
       - name: Terraform Init (sem backend)
-        if: github.ref != 'refs/heads/dev'
-        run: terraform init -backend=false
-
+        run: terraform init -backend=false -input=false
+        
       - name: Terraform Validate
         run: terraform validate
 
