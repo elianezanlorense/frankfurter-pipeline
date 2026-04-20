@@ -6,7 +6,6 @@ terraform {
       version = "~> 5.0"
     }
   }
-
   backend "gcs" {
     bucket = "zoocamp-project-tf-state"
     prefix = "terraform/state"
@@ -18,27 +17,12 @@ provider "google" {
   region  = var.region
 }
 
-# --- ATIVAÇÃO DE APIS ---
-resource "google_project_service" "iam_api" {
-  project = var.project_id
-  service = "iam.googleapis.com"
-  disable_on_destroy = false
-}
-
-resource "google_project_service" "compute_api" {
-  project = var.project_id
-  service = "compute.googleapis.com"
-  disable_on_destroy = false
-}
-
 # --- PERMISSÕES IAM ---
-# Unificado: Apenas uma declaração com o depends_on
+# Usa a variável passada pelo GitHub para identificar a conta de serviço da VM
 resource "google_service_account_iam_member" "allow_github_to_use_compute_sa" {
-  service_account_id = "projects/${var.project_id}/serviceAccounts/198485878590-compute@developer.gserviceaccount.com"
+  service_account_id = "projects/${var.project_id}/serviceAccounts/${var.project_number}-compute@developer.gserviceaccount.com"
   role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:github-actions-tf@zoocamp-project.iam.gserviceaccount.com"
-
-  depends_on = [google_project_service.iam_api]
+  member             = "serviceAccount:github-actions-tf@${var.project_id}.iam.gserviceaccount.com"
 }
 
 # --- DATA LAKE (STORAGE) ---
@@ -47,7 +31,6 @@ resource "google_storage_bucket" "data_lake" {
   location                    = var.location
   uniform_bucket_level_access = true
   force_destroy               = true
-
   versioning {
     enabled = true
   }
@@ -101,7 +84,7 @@ resource "google_compute_instance" "airflow_vm" {
     scopes = ["cloud-platform"]
   }
 
-  # Garante que a permissão de IAM seja aplicada ANTES da VM tentar subir
+  # Importante: Espera a permissão de IAM ser criada antes de subir a VM
   depends_on = [google_service_account_iam_member.allow_github_to_use_compute_sa]
 }
 

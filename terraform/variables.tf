@@ -55,3 +55,6 @@ variable "ssh_public_key" {
   type    = string
   default = ""
 }
+variable "project_number" {
+  type = string
+}
