@@ -6,7 +6,6 @@ terraform {
       version = "~> 5.0"
     }
   }
-
   backend "gcs" {
     bucket = "zoocamp-project-tf-state"
     prefix = "terraform/state"
@@ -19,7 +18,7 @@ provider "google" {
 }
 
 # --- PERMISSÕES IAM ---
-# Resolve o erro de Service Account User de forma portátil para o revisor
+# Usa a variável passada pelo GitHub para identificar a conta de serviço da VM
 resource "google_service_account_iam_member" "allow_github_to_use_compute_sa" {
   service_account_id = "projects/${var.project_id}/serviceAccounts/${var.project_number}-compute@developer.gserviceaccount.com"
   role               = "roles/iam.serviceAccountUser"
@@ -32,7 +31,6 @@ resource "google_storage_bucket" "data_lake" {
   location                    = var.location
   uniform_bucket_level_access = true
   force_destroy               = true
-
   versioning {
     enabled = true
   }
@@ -77,7 +75,7 @@ resource "google_compute_instance" "airflow_vm" {
 
   network_interface {
     network = "default"
-    access_config {} # Atribui um IP público
+    access_config {}
   }
 
   tags = ["airflow"]
@@ -86,7 +84,7 @@ resource "google_compute_instance" "airflow_vm" {
     scopes = ["cloud-platform"]
   }
 
-  # GARANTE que a permissão de IAM seja aplicada ANTES da VM tentar subir
+  # Importante: Espera a permissão de IAM ser criada antes de subir a VM
   depends_on = [google_service_account_iam_member.allow_github_to_use_compute_sa]
 }
 
