@@ -21,7 +21,7 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
-          export_default_credentials: true
+          export_environment_variables: true
 
       - name: Terraform Init
         run: terraform init -reconfigure
