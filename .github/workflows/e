@@ -1,10 +1,37 @@
-name: Test Actions
+name: Terraform CI
 
 on:
   push:
+  pull_request:
+  workflow_dispatch:
 
 jobs:
-  test:
+  terraform:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    defaults:
+      run:
+        working-directory: ./terraform
+
     steps:
-      - run: echo "Actions funcionando 🚀"
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init (sem backend)
+        if: github.ref != 'refs/heads/dev'
+        run: terraform init -backend=false
+
+        run: terraform init -backend=false -input=false
+        
+      - name: Terraform Validate
+        run: terraform validate
