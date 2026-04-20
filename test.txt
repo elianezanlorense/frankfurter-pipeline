@@ -28,4 +28,4 @@ gcloud compute firewall-rules delete allow-airflow-ui --quiet
 bq rm -r -f frankfurter-pipeline:frankfurter_dev
 
 # GCS data lake
-gcloud storage rm -r gs://frankfurter-data-lake-dev
+gcloud storage rm -r gs://frankfurter-data-lake-dev ü
