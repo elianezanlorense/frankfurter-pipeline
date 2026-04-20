@@ -21,7 +21,7 @@ def fetch_exchange_rates(**context):
 def save_to_gcs(**context):
     data = context['task_instance'].xcom_pull(task_ids='fetch_rates')
     date = context['ds']
-    client = storage.Client(project='frankfurter-pipeline')
+    client = storage.Client(project='zoocamp-project')
     bucket = client.bucket('frankfurter-dl"')
     blob = bucket.blob(f'raw/exchange_rates/{date}.json')
     blob.upload_from_string(json.dumps(data))
