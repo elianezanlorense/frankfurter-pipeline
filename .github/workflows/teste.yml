@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  terraform-checks:
+  terraform-plan:
     runs-on: ubuntu-latest
 
     permissions:
@@ -24,40 +24,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Debug
-        run: |
-          echo "event=${{ github.event_name }}"
-          echo "ref=${{ github.ref }}"
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Terraform Format Check
+      - name: Terraform Format
         run: terraform fmt -check -recursive
 
-      - name: Terraform Init (sem backend)
-        run: terraform init -backend=false -input=false
+      - name: Terraform Init (no backend)
+        run: terraform init -backend=false
 
       - name: Terraform Validate
         run: terraform validate
 
-      # Auth só quando precisa acessar GCP
       - name: Authenticate to GCP
-        if: github.ref == 'refs/heads/dev' || github.event_name == 'pull_request'
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: github-actions-tf@frankfurter-pipeline.iam.gserviceaccount.com
 
-      - name: Terraform Init (com backend)
-        if: github.ref == 'refs/heads/dev' || github.event_name == 'pull_request'
+      - name: Terraform Init (backend)
         run: terraform init -reconfigure
 
-      # PLAN para PR (com output para comentário)
-      - name: Terraform Plan (PR)
-        if: github.event_name == 'pull_request'
-        run: terraform plan -no-color -var-file=terraform.tfvars > plan.txt
+      # 🔥 PLAN SEMPRE (PR e DEV)
+      - name: Terraform Plan
+        run: terraform plan -no-color -out=tfplan -var-file=terraform.tfvars > plan.txt
 
+      # 🔥 MOSTRA O PLAN NO PR
       - name: Comment PR with plan
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
@@ -72,11 +64,7 @@ jobs:
               body: `### 📊 Terraform Plan\n\`\`\`\n${plan}\n\`\`\``
             });
 
-      # PLAN para DEV (gera arquivo para apply)
-      - name: Terraform Plan (DEV)
-        if: github.ref == 'refs/heads/dev'
-        run: terraform plan -out=tfplan -var-file=terraform.tfvars
-
+      # salva o plano para aplicar depois
       - name: Upload tfplan
         if: github.ref == 'refs/heads/dev'
         uses: actions/upload-artifact@v4
@@ -85,11 +73,11 @@ jobs:
           path: ./terraform/tfplan
 
   terraform-apply:
-    needs: terraform-checks
+    needs: terraform-plan
     if: github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
 
-    # 🔥 ISSO AQUI GERA APROVAÇÃO MANUAL
+    # 🔥 ISSO CRIA APROVAÇÃO MANUAL
     environment: dev
 
     permissions:
@@ -119,10 +107,10 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: github-actions-tf@frankfurter-pipeline.iam.gserviceaccount.com
 
-      - name: Terraform Init (com backend)
+      - name: Terraform Init
         run: terraform init -reconfigure
 
       - name: Terraform Apply
         run: |
-          echo "🚀 Applying infrastructure..."
+          echo "🚀 Waiting approval..."
           terraform apply -auto-approve tfplan
