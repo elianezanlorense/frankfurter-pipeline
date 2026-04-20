@@ -14,6 +14,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      pull-requests: write
 
     defaults:
       run:
@@ -22,6 +23,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Debug
+        run: |
+          echo "event=${{ github.event_name }}"
+          echo "ref=${{ github.ref }}"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -35,18 +41,39 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
+      # Auth só quando precisa acessar GCP
       - name: Authenticate to GCP
-        if: github.ref == 'refs/heads/dev'
+        if: github.ref == 'refs/heads/dev' || github.event_name == 'pull_request'
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: github-actions-tf@frankfurter-pipeline.iam.gserviceaccount.com
 
       - name: Terraform Init (com backend)
-        if: github.ref == 'refs/heads/dev'
+        if: github.ref == 'refs/heads/dev' || github.event_name == 'pull_request'
         run: terraform init -reconfigure
 
-      - name: Terraform Plan
+      # PLAN para PR (com output para comentário)
+      - name: Terraform Plan (PR)
+        if: github.event_name == 'pull_request'
+        run: terraform plan -no-color -var-file=terraform.tfvars > plan.txt
+
+      - name: Comment PR with plan
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('terraform/plan.txt', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `### 📊 Terraform Plan\n\`\`\`\n${plan}\n\`\`\``
+            });
+
+      # PLAN para DEV (gera arquivo para apply)
+      - name: Terraform Plan (DEV)
         if: github.ref == 'refs/heads/dev'
         run: terraform plan -out=tfplan -var-file=terraform.tfvars
 
@@ -61,6 +88,8 @@ jobs:
     needs: terraform-checks
     if: github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
+
+    # 🔥 ISSO AQUI GERA APROVAÇÃO MANUAL
     environment: dev
 
     permissions:
@@ -94,4 +123,6 @@ jobs:
         run: terraform init -reconfigure
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve tfplan
+        run: |
+          echo "🚀 Applying infrastructure..."
+          terraform apply -auto-approve tfplan
