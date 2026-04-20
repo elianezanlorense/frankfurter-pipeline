@@ -29,25 +29,25 @@ jobs:
 
       - name: Terraform Init (sem backend)
         run: terraform init -backend=false -input=false
-        
+
       - name: Terraform Validate
         run: terraform validate
 
       - name: Authenticate to GCP
-        if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+        if: github.event_name == 'push'
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: github-actions-tf@frankfurter-pipeline.iam.gserviceaccount.com
 
       - name: Terraform Init (com backend)
-        if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+        if: github.event_name == 'push'
         run: terraform init -reconfigure
 
       - name: Terraform Plan
-        if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+        if: github.event_name == 'push'
         run: terraform plan -var-file=terraform.tfvars
 
       - name: Terraform Apply
-        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev'
+        if: github.event_name == 'workflow_dispatch'
         run: terraform apply -auto-approve -var-file=terraform.tfvars
