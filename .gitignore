@@ -10,3 +10,4 @@ dbt/target/
 dbt/logs/
 dbt/target/
 key.json
+key.json
