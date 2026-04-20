@@ -1,6 +1,6 @@
 variable "project_id" {
   type    = string
-  default = "frankfurter-pipeline"
+  default = "zoocamp-project"
 }
 
 variable "region" {
@@ -54,7 +54,4 @@ variable "ssh_user" {
 variable "ssh_public_key" {
   type    = string
   default = ""
-}
-variable "project_number" {
-  type = string
 }
