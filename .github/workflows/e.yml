@@ -1,15 +1,28 @@
-name: Teste Actions
+name: Terraform CI
 
 on:
   push:
 
 jobs:
-  teste:
+  terraform:
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./terraform
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Mostrar mensagem
-        run: echo "CI funcionando 🚀"
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init (sem backend)
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        run: terraform validate
