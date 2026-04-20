@@ -2,10 +2,6 @@ name: Terraform CI
 
 on:
   workflow_dispatch:
-    inputs:
-      project_number:
-        description: 'GCP Project Number'
-        required: true
 
 jobs:
   terraform:
@@ -31,10 +27,10 @@ jobs:
         run: terraform init -reconfigure
 
       - name: Terraform Plan
-        run: terraform plan -var="project_number=${{ github.event.inputs.project_number }}" -var-file=terraform.tfvars
+        run: terraform plan -var-file=terraform.tfvars
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve -var="project_number=${{ github.event.inputs.project_number }}" -var-file=terraform.tfvars
+        run: terraform apply -auto-approve -var-file=terraform.tfvars
 
       - name: Release state lock on failure
         if: failure()

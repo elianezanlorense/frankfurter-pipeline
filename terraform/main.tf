@@ -17,10 +17,11 @@ provider "google" {
   region  = var.region
 }
 
+data "google_project" "current" {}
+
 # --- PERMISSÕES IAM ---
-# Usa a variável passada pelo GitHub para identificar a conta de serviço da VM
 resource "google_service_account_iam_member" "allow_github_to_use_compute_sa" {
-  service_account_id = "projects/${var.project_id}/serviceAccounts/${var.project_number}-compute@developer.gserviceaccount.com"
+  service_account_id = "projects/${var.project_id}/serviceAccounts/${data.google_project.current.number}-compute@developer.gserviceaccount.com"
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:github-actions-tf@${var.project_id}.iam.gserviceaccount.com"
 }
@@ -47,14 +48,12 @@ resource "google_bigquery_table" "exchange_rates" {
   dataset_id = google_bigquery_dataset.dataset.dataset_id
   table_id   = "exchange_rates"
   project    = var.project_id
-
   schema = jsonencode([
-    { name = "date",            type = "DATE",  mode = "REQUIRED" },
+    { name = "date",            type = "DATE",   mode = "REQUIRED" },
     { name = "base_currency",   type = "STRING", mode = "REQUIRED" },
     { name = "target_currency", type = "STRING", mode = "REQUIRED" },
     { name = "rate",            type = "FLOAT",  mode = "REQUIRED" }
   ])
-
   deletion_protection = false
 }
 
@@ -84,7 +83,6 @@ resource "google_compute_instance" "airflow_vm" {
     scopes = ["cloud-platform"]
   }
 
-  # Importante: Espera a permissão de IAM ser criada antes de subir a VM
   depends_on = [google_service_account_iam_member.allow_github_to_use_compute_sa]
 }
 
