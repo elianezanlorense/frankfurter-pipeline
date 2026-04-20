@@ -30,6 +30,14 @@ resource "google_storage_bucket" "data_lake" {
   }
 }
 
+# Permissão para o GitHub Actions usar a conta de serviço padrão do Compute Engine
+resource "google_service_account_iam_member" "allow_github_to_use_compute_sa" {
+  # O ID da conta de serviço que apareceu no seu erro
+  service_account_id = "projects/${var.project_id}/serviceAccounts/198485878590-compute@developer.gserviceaccount.com"
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:github-actions-tf@zoocamp-project.iam.gserviceaccount.com"
+}
+
 # BigQuery
 resource "google_bigquery_dataset" "dataset" {
   dataset_id = var.bigquery_dataset
