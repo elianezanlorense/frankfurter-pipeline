@@ -22,7 +22,7 @@ def save_to_gcs(**context):
     data = context['task_instance'].xcom_pull(task_ids='fetch_rates')
     date = context['ds']
     client = storage.Client(project='frankfurter-pipeline')
-    bucket = client.bucket('frankfurter-data-lake-dev')
+    bucket = client.bucket('frankfurter-dl"')
     blob = bucket.blob(f'raw/exchange_rates/{date}.json')
     blob.upload_from_string(json.dumps(data))
     print(f"Saved data for {date} to GCS")  # ✅ indented inside function
