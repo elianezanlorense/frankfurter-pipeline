@@ -45,6 +45,31 @@ resource "google_bigquery_dataset" "dataset" {
   location   = var.location
 }
 
+# Ativa a API de IAM (necessária para o recurso que deu erro)
+resource "google_project_service" "iam_api" {
+  project = var.project_id
+  service = "iam.googleapis.com"
+  disable_on_destroy = false
+}
+
+# Ativa a API de Compute (boa prática garantir que está ativa)
+resource "google_project_service" "compute_api" {
+  project = var.project_id
+  service = "compute.googleapis.com"
+  disable_on_destroy = false
+}
+
+# Agora, adicione uma "dependência" no seu recurso de IAM 
+# para ele esperar a API ser ativada antes de tentar rodar
+resource "google_service_account_iam_member" "allow_github_to_use_compute_sa" {
+  service_account_id = "projects/${var.project_id}/serviceAccounts/198485878590-compute@developer.gserviceaccount.com"
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:github-actions-tf@zoocamp-project.iam.gserviceaccount.com"
+
+  # ISSO É IMPORTANTE: Força o Terraform a esperar a API ligar
+  depends_on = [google_project_service.iam_api]
+}
+
 resource "google_bigquery_table" "exchange_rates" {
   dataset_id = google_bigquery_dataset.dataset.dataset_id
   table_id   = "exchange_rates"
