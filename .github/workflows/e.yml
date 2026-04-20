@@ -17,6 +17,9 @@ jobs:
       run:
         working-directory: ./terraform
 
+    env:
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,20 +37,20 @@ jobs:
         run: terraform validate
 
       - name: Authenticate to GCP
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && env.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: github-actions-tf@frankfurter-pipeline.iam.gserviceaccount.com
 
       - name: Terraform Init (com backend)
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && env.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
         run: terraform init -reconfigure
 
       - name: Terraform Plan
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && env.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
         run: terraform plan -var-file=terraform.tfvars
 
       - name: Terraform Apply
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && env.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
         run: terraform apply -auto-approve -var-file=terraform.tfvars
