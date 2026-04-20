@@ -1,10 +1,11 @@
 name: Terraform CI
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      project_number:
+        description: 'GCP Project Number'
+        required: true
 
 jobs:
   terraform:
@@ -30,9 +31,11 @@ jobs:
         run: terraform init -reconfigure
 
       - name: Terraform Plan
-        # O segredo está em passar o número aqui para não travar perguntando
-        run: terraform plan -var="project_number=198485878590" -var-file=terraform.tfvars
+        run: terraform plan -var="project_number=${{ github.event.inputs.project_number }}" -var-file=terraform.tfvars
 
       - name: Terraform Apply
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform apply -auto-approve -var="project_number=198485878590" -var-file=terraform.tfvars
+        run: terraform apply -auto-approve -var="project_number=${{ github.event.inputs.project_number }}" -var-file=terraform.tfvars
+
+      - name: Release state lock on failure
+        if: failure()
+        run: gsutil rm -f gs://zoocamp-project-tf-state/terraform/state/default.tflock || true
