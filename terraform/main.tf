@@ -6,6 +6,7 @@ terraform {
       version = "~> 5.0"
     }
   }
+
   backend "gcs" {
     bucket = "zoocamp-project-tf-state"
     prefix = "terraform/state"
@@ -17,33 +18,49 @@ provider "google" {
   region  = var.region
 }
 
-# --- 1. BUSCA DINÂMICA DE DADOS ---
-# Isso permite que o código funcione no projeto de qualquer revisor
-data "google_project" "project" {}
-
-# --- 2. PERMISSÕES IAM AUTOMATIZADAS ---
-# Resolve o erro de Service Account User sem usar o seu número de projeto fixo
+# --- PERMISSÕES IAM ---
+# Resolve o erro de Service Account User de forma portátil para o revisor
 resource "google_service_account_iam_member" "allow_github_to_use_compute_sa" {
-  service_account_id = "projects/${var.project_id}/serviceAccounts/${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+  service_account_id = "projects/${var.project_id}/serviceAccounts/${var.project_number}-compute@developer.gserviceaccount.com"
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:github-actions-tf@${var.project_id}.iam.gserviceaccount.com"
 }
 
-# --- 3. INFRAESTRUTURA (DATA LAKE & BQ) ---
+# --- DATA LAKE (STORAGE) ---
 resource "google_storage_bucket" "data_lake" {
   name                        = var.data_lake_bucket_name
   location                    = var.location
   uniform_bucket_level_access = true
   force_destroy               = true
+
+  versioning {
+    enabled = true
+  }
 }
 
+# --- BIGQUERY ---
 resource "google_bigquery_dataset" "dataset" {
   dataset_id = var.bigquery_dataset
   project    = var.project_id
   location   = var.location
 }
 
-# --- 4. COMPUTE ENGINE (AIRFLOW VM) ---
+resource "google_bigquery_table" "exchange_rates" {
+  dataset_id = google_bigquery_dataset.dataset.dataset_id
+  table_id   = "exchange_rates"
+  project    = var.project_id
+
+  schema = jsonencode([
+    { name = "date",            type = "DATE",  mode = "REQUIRED" },
+    { name = "base_currency",   type = "STRING", mode = "REQUIRED" },
+    { name = "target_currency", type = "STRING", mode = "REQUIRED" },
+    { name = "rate",            type = "FLOAT",  mode = "REQUIRED" }
+  ])
+
+  deletion_protection = false
+}
+
+# --- COMPUTE ENGINE (AIRFLOW VM) ---
 resource "google_compute_instance" "airflow_vm" {
   name         = var.vm_name
   machine_type = var.vm_machine_type
@@ -54,23 +71,26 @@ resource "google_compute_instance" "airflow_vm" {
     initialize_params {
       image = var.vm_image
       size  = var.vm_disk_size
+      type  = "pd-standard"
     }
   }
 
   network_interface {
     network = "default"
-    access_config {} # IP Público
+    access_config {} # Atribui um IP público
   }
+
+  tags = ["airflow"]
 
   service_account {
     scopes = ["cloud-platform"]
   }
 
-  # CRITICAL: Garante que a permissão de IAM acima aconteça ANTES da VM ser criada
+  # GARANTE que a permissão de IAM seja aplicada ANTES da VM tentar subir
   depends_on = [google_service_account_iam_member.allow_github_to_use_compute_sa]
 }
 
-# --- 5. FIREWALL ---
+# --- FIREWALL ---
 resource "google_compute_firewall" "allow_airflow" {
   name    = "allow-airflow-ui"
   network = "default"
