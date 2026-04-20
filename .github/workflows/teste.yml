@@ -1,12 +1,14 @@
 name: Terraform CI
 
 on:
-  push:
   pull_request:
+  push:
+    branches:
+      - dev
   workflow_dispatch:
 
 jobs:
-  terraform:
+  terraform-checks:
     runs-on: ubuntu-latest
 
     permissions:
@@ -29,7 +31,7 @@ jobs:
 
       - name: Terraform Init (sem backend)
         run: terraform init -backend=false -input=false
-        
+
       - name: Terraform Validate
         run: terraform validate
 
@@ -46,8 +48,50 @@ jobs:
 
       - name: Terraform Plan
         if: github.ref == 'refs/heads/dev'
-        run: terraform plan -var-file=terraform.tfvars
+        run: terraform plan -out=tfplan -var-file=terraform.tfvars
+
+      - name: Upload tfplan
+        if: github.ref == 'refs/heads/dev'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: ./terraform/tfplan
+
+  terraform-apply:
+    needs: terraform-checks
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    environment: dev
+
+    permissions:
+      contents: read
+      id-token: write
+
+    defaults:
+      run:
+        working-directory: ./terraform
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Download tfplan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: ./terraform
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: github-actions-tf@frankfurter-pipeline.iam.gserviceaccount.com
+
+      - name: Terraform Init (com backend)
+        run: terraform init -reconfigure
 
       - name: Terraform Apply
-        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev'
-        run: terraform apply -auto-approve -var-file=terraform.tfvars
+        run: terraform apply -auto-approve tfplan
