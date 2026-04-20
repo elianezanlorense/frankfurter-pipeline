@@ -11,11 +11,13 @@ jobs:
 
     permissions:
       contents: read
-      id-token: write
 
     defaults:
       run:
         working-directory: ./terraform
+
+    env:
+      GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
 
     steps:
       - name: Checkout
@@ -29,25 +31,24 @@ jobs:
 
       - name: Terraform Init (sem backend)
         run: terraform init -backend=false -input=false
-        
+
       - name: Terraform Validate
         run: terraform validate
 
       - name: Authenticate to GCP
-        if: github.ref == 'refs/heads/dev'
+        if: github.event_name == 'push' && env.GCP_CREDENTIALS != ''
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: github-actions-tf@frankfurter-pipeline.iam.gserviceaccount.com
+          credentials_json: ${{ env.GCP_CREDENTIALS }}
 
       - name: Terraform Init (com backend)
-        if: github.ref == 'refs/heads/dev'
+        if: github.event_name == 'push' && env.GCP_CREDENTIALS != ''
         run: terraform init -reconfigure
 
       - name: Terraform Plan
-        if: github.ref == 'refs/heads/dev'
+        if: github.event_name == 'push' && env.GCP_CREDENTIALS != ''
         run: terraform plan -var-file=terraform.tfvars
 
       - name: Terraform Apply
-        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev'
+        if: github.event_name == 'workflow_dispatch' && env.GCP_CREDENTIALS != ''
         run: terraform apply -auto-approve -var-file=terraform.tfvars
