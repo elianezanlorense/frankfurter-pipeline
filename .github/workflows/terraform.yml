@@ -5,6 +5,7 @@ on:
     workflows: ["Teste GCP Auth"]
     types:
       - completed
+  workflow_dispatch:
 
 jobs:
   terraform:

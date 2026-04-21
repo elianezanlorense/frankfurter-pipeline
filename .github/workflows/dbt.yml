@@ -5,6 +5,7 @@ on:
     workflows: ["Terraform CI"]
     types:
       - completed
+  workflow_dispatch:
 
 jobs:
   dbt:
