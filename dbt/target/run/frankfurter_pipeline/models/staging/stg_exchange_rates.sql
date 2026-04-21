@@ -1,6 +1,6 @@
 
 
-  create or replace view `frankfurter-pipeline`.`frankfurter_dev`.`stg_exchange_rates`
+  create or replace view `zoocamp-project`.`frankfurter_dev`.`stg_exchange_rates`
   OPTIONS()
   as with source as (
     select
@@ -8,7 +8,7 @@
         base_currency,
         target_currency,
         rate
-    from `frankfurter-pipeline`.`frankfurter_dev`.`exchange_rates`
+    from `zoocamp-project`.`frankfurter_dev`.`exchange_rates`
 ),
 renamed as (
     select

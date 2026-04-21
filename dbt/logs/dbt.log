@@ -358,3 +358,56 @@ order by date desc;
 [0m18:28:49.323952 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10760dfa0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x11cb769a0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x11d1ef2b0>]}
 [0m18:28:49.324175 [debug] [MainThread]: Flushing usage events
 [0m18:28:49.848324 [debug] [MainThread]: An error was encountered while trying to flush usage events
+[0m09:33:06.052562 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x103c45bb0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x104ccf550>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x104ccf730>]}
+
+
+============================== 09:33:06.055240 | 60d1e925-74f4-4fa4-844e-4cb466b2e2b7 ==============================
+[0m09:33:06.055240 [info ] [MainThread]: Running with dbt=1.11.0-b3
+[0m09:33:06.055501 [debug] [MainThread]: running dbt with arguments {'warn_error': 'None', 'cache_selected_only': 'False', 'log_path': '/Users/eli/franktfurter-pipeline/dbt/logs', 'quiet': 'False', 'indirect_selection': 'eager', 'log_format': 'default', 'static_parser': 'True', 'log_cache_events': 'False', 'use_experimental_parser': 'False', 'empty': 'False', 'no_print': 'None', 'partial_parse': 'True', 'invocation_command': 'dbt run', 'write_json': 'True', 'introspect': 'True', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'printer_width': '80', 'debug': 'False', 'send_anonymous_usage_stats': 'True', 'version_check': 'True', 'profiles_dir': '/Users/eli/.dbt', 'use_colors': 'True', 'fail_fast': 'False', 'target_path': 'None'}
+[0m09:33:09.391257 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'project_id', 'label': '60d1e925-74f4-4fa4-844e-4cb466b2e2b7', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x115e47880>]}
+[0m09:33:09.419962 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'adapter_info', 'label': '60d1e925-74f4-4fa4-844e-4cb466b2e2b7', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x11918bd60>]}
+[0m09:33:09.420311 [info ] [MainThread]: Registered adapter: bigquery=1.10.2
+[0m09:33:09.551681 [debug] [MainThread]: checksum: e63134dccc1251cfb572caf0e4aa952f030c125ee3634f3bf2c0a2e1bb6ae349, vars: {}, profile: , target: , version: 1.11.0b3
+[0m09:33:09.630587 [debug] [MainThread]: Partial parsing enabled: 0 files deleted, 0 files added, 1 files changed.
+[0m09:33:09.631000 [debug] [MainThread]: Partial parsing: updated file: frankfurter_pipeline://models/staging/sources.yml
+[0m09:33:09.796038 [warn ] [MainThread]: [[33mWARNING[0m]: Configuration paths exist in your dbt_project.yml file which do not apply to any resources.
+There are 1 unused configuration paths:
+- models.frankfurter_pipeline.example
+[0m09:33:09.801301 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'load_project', 'label': '60d1e925-74f4-4fa4-844e-4cb466b2e2b7', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1199c9130>]}
+[0m09:33:09.921953 [debug] [MainThread]: Wrote artifact WritableManifest to /Users/eli/franktfurter-pipeline/dbt/target/manifest.json
+[0m09:33:09.923179 [debug] [MainThread]: Wrote artifact SemanticManifest to /Users/eli/franktfurter-pipeline/dbt/target/semantic_manifest.json
+[0m09:33:09.933693 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'resource_counts', 'label': '60d1e925-74f4-4fa4-844e-4cb466b2e2b7', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x119984220>]}
+[0m09:33:09.933945 [info ] [MainThread]: Found 3 models, 1 source, 508 macros
+[0m09:33:09.934103 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'runnable_timing', 'label': '60d1e925-74f4-4fa4-844e-4cb466b2e2b7', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x11994af40>]}
+[0m09:33:09.934739 [info ] [MainThread]: 
+[0m09:33:09.934902 [info ] [MainThread]: Concurrency: 1 threads (target='dev')
+[0m09:33:09.935026 [info ] [MainThread]: 
+[0m09:33:09.935244 [debug] [MainThread]: Acquiring new bigquery connection 'master'
+[0m09:33:09.937366 [debug] [ThreadPool]: Acquiring new bigquery connection 'list_frankfurter-pipeline'
+[0m09:33:09.937558 [debug] [ThreadPool]: Opening a new connection, currently in state init
+[0m09:33:10.893725 [debug] [ThreadPool]: Re-using an available connection from the pool (formerly list_frankfurter-pipeline, now create_frankfurter-pipeline_frankfurter_dev)
+[0m09:33:10.894141 [debug] [ThreadPool]: Creating schema "database: "frankfurter-pipeline"
+schema: "frankfurter_dev"
+"
+[0m09:33:10.899241 [debug] [ThreadPool]: On create_frankfurter-pipeline_frankfurter_dev: /* {"app": "dbt", "dbt_version": "1.11.0b3", "profile_name": "frankfurter_pipeline", "target_name": "dev", "connection_name": "create_frankfurter-pipeline_frankfurter_dev"} */
+create schema if not exists `frankfurter-pipeline`.`frankfurter_dev`
+  
+[0m09:33:10.899453 [debug] [ThreadPool]: Opening a new connection, currently in state closed
+[0m09:33:11.328305 [error] [ThreadPool]: BigQuery adapter: https://console.cloud.google.com/bigquery?project=frankfurter-pipeline&j=bq:EU:289e99a2-edab-4b4d-84ab-9273684b97ce&page=queryresults
+[0m09:33:11.328612 [debug] [ThreadPool]: BigQuery adapter: Unhandled error while running:
+macro create_schema
+[0m09:33:11.328759 [debug] [ThreadPool]: BigQuery adapter: Database Error
+  Not found: Project frankfurter-pipeline
+[0m09:33:11.329099 [debug] [MainThread]: Opening a new connection, currently in state init
+[0m09:33:11.329428 [debug] [MainThread]: Connection 'master' was properly closed.
+[0m09:33:11.329580 [debug] [MainThread]: Connection 'create_frankfurter-pipeline_frankfurter_dev' was properly closed.
+[0m09:33:11.329734 [info ] [MainThread]: 
+[0m09:33:11.329896 [info ] [MainThread]: Finished running  in 0 hours 0 minutes and 1.39 seconds (1.39s).
+[0m09:33:11.330260 [error] [MainThread]: Encountered an error:
+Database Error
+  Not found: Project frankfurter-pipeline
+[0m09:33:11.332764 [debug] [MainThread]: Resource report: {"command_name": "run", "command_success": false, "command_wall_clock_time": 5.3269367, "process_in_blocks": "0", "process_kernel_time": 0.429542, "process_mem_max_rss": "356859904", "process_out_blocks": "0", "process_user_time": 2.122792}
+[0m09:33:11.332993 [debug] [MainThread]: Command `dbt run` failed at 09:33:11.332944 after 5.33 seconds
+[0m09:33:11.333175 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x103c45bb0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1198628b0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x119a56e50>]}
+[0m09:33:11.333359 [debug] [MainThread]: Flushing usage events
+[0m09:33:11.823650 [debug] [MainThread]: An error was encountered while trying to flush usage events
