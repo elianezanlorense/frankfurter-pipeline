@@ -1,14 +1,22 @@
 #!/bin/bash
 set -e
 
+# Atualiza pacotes e instala dependências
 apt-get update -y
-apt-get install -y python3-pip python3-venv ca-certificates
+apt-get install -y python3-pip python3-venv ca-certificates sudo
 update-ca-certificates
 
-# Cria usuário airflow
+# Cria o diretório base e o usuário airflow (se não existirem)
+mkdir -p /opt/airflow
 useradd -m -s /bin/bash airflow || true
+chown -R airflow:airflow /opt/airflow
 
-# Cria ambiente virtual
+# --- Executa o restante como usuário airflow para evitar erros de permissão ---
+sudo -u airflow bash << 'EOF'
+set -e
+export AIRFLOW_HOME=/opt/airflow
+
+# Cria ambiente virtual dentro da pasta com permissão
 python3 -m venv /opt/airflow/venv
 source /opt/airflow/venv/bin/activate
 
@@ -20,29 +28,27 @@ pip install apache-airflow==2.9.1 \
 
 # Cria diretório de DAGs
 mkdir -p /opt/airflow/dags
-chown -R airflow:airflow /opt/airflow
 
-# Configura variáveis de ambiente
-export AIRFLOW_HOME=/opt/airflow
+# Inicializa o banco de dados
+export AIRFLOW__CORE__LOAD_EXAMPLES=False
+export AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=False
+airflow db init
+
+# Cria usuário admin
+airflow users create \
+  --username admin \
+  --password admin \
+  --firstname Admin \
+  --lastname Admin \
+  --role Admin \
+  --email admin@example.com
+EOF
+
+# Configura variáveis de ambiente globais para o usuário airflow
 echo "export AIRFLOW_HOME=/opt/airflow" >> /home/airflow/.bashrc
 echo "export PATH=/opt/airflow/venv/bin:$PATH" >> /home/airflow/.bashrc
 
-# Inicializa o banco de dados
-sudo -u airflow bash -c "
-  source /opt/airflow/venv/bin/activate
-  export AIRFLOW_HOME=/opt/airflow
-  export AIRFLOW__CORE__LOAD_EXAMPLES=False
-  airflow db init
-  airflow users create \
-    --username admin \
-    --password admin \
-    --firstname Admin \
-    --lastname Admin \
-    --role Admin \
-    --email admin@example.com
-"
-
-# Cria serviços systemd
+# --- Criação dos serviços systemd (como root) ---
 cat > /etc/systemd/system/airflow-webserver.service << EOF
 [Unit]
 Description=Airflow Webserver
@@ -50,6 +56,7 @@ After=network.target
 
 [Service]
 User=airflow
+Group=airflow
 Environment=AIRFLOW_HOME=/opt/airflow
 Environment=AIRFLOW__CORE__LOAD_EXAMPLES=False
 Environment=PATH=/opt/airflow/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -68,6 +75,7 @@ After=network.target
 
 [Service]
 User=airflow
+Group=airflow
 Environment=AIRFLOW_HOME=/opt/airflow
 Environment=AIRFLOW__CORE__LOAD_EXAMPLES=False
 Environment=AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=False
@@ -80,6 +88,7 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
+# Inicia os serviços
 systemctl daemon-reload
 systemctl enable airflow-webserver airflow-scheduler
 systemctl start airflow-webserver airflow-scheduler
