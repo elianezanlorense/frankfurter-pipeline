@@ -30,6 +30,7 @@ echo "export PATH=/opt/airflow/venv/bin:$PATH" >> /home/airflow/.bashrc
 sudo -u airflow bash -c "
   source /opt/airflow/venv/bin/activate
   export AIRFLOW_HOME=/opt/airflow
+  export AIRFLOW__CORE__LOAD_EXAMPLES=False
   airflow db init
   airflow users create \
     --username admin \
@@ -49,6 +50,7 @@ After=network.target
 [Service]
 User=airflow
 Environment=AIRFLOW_HOME=/opt/airflow
+Environment=AIRFLOW__CORE__LOAD_EXAMPLES=False
 Environment=PATH=/opt/airflow/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ExecStart=/opt/airflow/venv/bin/airflow webserver --port 8080
 Restart=always
@@ -66,6 +68,7 @@ After=network.target
 [Service]
 User=airflow
 Environment=AIRFLOW_HOME=/opt/airflow
+Environment=AIRFLOW__CORE__LOAD_EXAMPLES=False
 Environment=PATH=/opt/airflow/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ExecStart=/opt/airflow/venv/bin/airflow scheduler
 Restart=always
