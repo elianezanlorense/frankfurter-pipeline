@@ -32,7 +32,6 @@ jobs:
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/airflow_key
           chmod 600 /tmp/airflow_key
-
           for i in {1..10}; do
             ssh -o StrictHostKeyChecking=no -i /tmp/airflow_key \
               airflow@${{ steps.vm_ip.outputs.ip }} \
@@ -40,7 +39,6 @@ jobs:
             echo "Aguardando startup script... tentativa $i/10"
             sleep 30
           done
-
           scp -o StrictHostKeyChecking=no -i /tmp/airflow_key \
             airflow/dags/*.py \
             airflow@${{ steps.vm_ip.outputs.ip }}:/opt/airflow/dags/
@@ -49,4 +47,7 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -i /tmp/airflow_key \
             airflow@${{ steps.vm_ip.outputs.ip }} \
-            "source /opt/airflow/venv/bin/activate && export AIRFLOW_HOME=/opt/airflow && airflow dags trigger frankfurter_exchange_rates"
+            "source /opt/airflow/venv/bin/activate && \
+             export AIRFLOW_HOME=/opt/airflow && \
+             sleep 30 && \
+             airflow dags trigger frankfurter_exchange_rates"
