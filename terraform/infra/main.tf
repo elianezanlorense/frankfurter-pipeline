@@ -17,18 +17,37 @@ provider "google" {
   region  = var.region
 }
 
-# --- BUSCA AUTOMÁTICA DO NÚMERO DO PROJETO ---
-# O Terraform usa o ID para descobrir o número (ex: 1984858...) sem intervenção manual
 data "google_project" "project" {
   project_id = var.project_id
 }
 
-# --- PERMISSÕES IAM ---
+# --- PERMISSÕES IAM (ATUALIZADO) ---
+
+# Permissão para GitHub Actions
 resource "google_service_account_iam_member" "allow_github_to_use_compute_sa" {
-  # O Terraform utiliza o número descoberto dinamicamente acima
   service_account_id = "projects/${var.project_id}/serviceAccounts/${data.google_project.project.number}-compute@developer.gserviceaccount.com"
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:github-actions-tf@${var.project_id}.iam.gserviceaccount.com"
+}
+
+# Permissão para VM escrever no Storage (Resolve erro save_to_gcs)
+resource "google_project_iam_member" "vm_storage_admin" {
+  project = var.project_id
+  role    = "roles/storage.objectAdmin"
+  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+
+# Permissão para VM carregar dados no BigQuery (Resolve erro load_to_bigquery)
+resource "google_project_iam_member" "vm_bigquery_editor" {
+  project = var.project_id
+  role    = "roles/bigquery.dataEditor"
+  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+
+resource "google_project_iam_member" "vm_bigquery_user" {
+  project = var.project_id
+  role    = "roles/bigquery.user"
+  member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
 }
 
 # --- DATA LAKE (STORAGE) ---
@@ -82,23 +101,22 @@ resource "google_compute_instance" "airflow_vm" {
 
   network_interface {
     network = "default"
-    access_config {} # Atribui IP público automaticamente
+    access_config {} 
   }
 
   tags = ["airflow"]
 
   metadata = {
-    # Combina o teu ssh_user (airflow) com a tua chave pública SSH
     ssh-keys = "${var.ssh_user}:${var.ssh_public_key}"
   }
 
   metadata_startup_script = file("${path.module}/startup_script.sh")
 
   service_account {
+    email  = "${data.google_project.project.number}-compute@developer.gserviceaccount.com"
     scopes = ["cloud-platform"]
   }
 
-  # Força a recriação da VM se a chave SSH no tfvars/secrets mudar
   lifecycle {
     replace_triggered_by = [
       terraform_data.ssh_key
@@ -108,7 +126,6 @@ resource "google_compute_instance" "airflow_vm" {
   depends_on = [google_service_account_iam_member.allow_github_to_use_compute_sa]
 }
 
-# Recurso auxiliar para detetar mudanças na chave pública
 resource "terraform_data" "ssh_key" {
   input = var.ssh_public_key
 }
