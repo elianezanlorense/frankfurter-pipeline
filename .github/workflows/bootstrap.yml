@@ -1,0 +1,28 @@
+name: Bootstrap
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./terraform/state
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Authenticate to GCP (Owner)
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve \
+          -var="project_number=${{ secrets.GCP_PROJECT_NUMBER }}" \
+          -var="github_owner=${{ github.repository_owner }}" \
+          -var="github_repo=${{ github.event.repository.name }}"
