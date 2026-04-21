@@ -1,16 +1,15 @@
+# .github/workflows/terraform.yml
 name: Terraform CI
 
 on:
-  workflow_run:
-    workflows: ["Teste GCP Auth"]
-    types:
-      - completed
-    branches:
-      - '*'
+  workflow_call:
+    inputs:
+      branch:
+        required: true
+        type: string
 
 jobs:
   terraform:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -36,7 +35,7 @@ jobs:
         run: terraform plan -var-file=terraform.tfvars
 
       - name: Terraform Apply
-        if: github.event.workflow_run.head_branch == 'dev'
+        if: inputs.branch == 'dev'
         run: terraform apply -auto-approve -var-file=terraform.tfvars
 
       - name: Release state lock on failure

@@ -1,16 +1,11 @@
+# .github/workflows/dbt.yml
 name: dbt CI
 
 on:
-  workflow_run:
-    workflows: ["Terraform CI"]
-    types:
-      - completed
-    branches:
-      - '*'
+  workflow_call:
 
 jobs:
   dbt:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     defaults:
       run:

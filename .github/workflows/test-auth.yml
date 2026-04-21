@@ -1,27 +1,21 @@
+# .github/workflows/test-auth.yml
 name: Teste GCP Auth
 
 on:
-  push:
-    branches:
-      - '*'
-  workflow_dispatch:
+  workflow_call:
 
 jobs:
   test-auth:
     runs-on: ubuntu-latest
 
-    env:
-      GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
-
     steps:
-      - name: Checkout do código
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Autenticar no GCP
-        if: ${{ env.GCP_CREDENTIALS != '' }}
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ env.GCP_CREDENTIALS }}
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
 
       - name: Instalar gcloud
         uses: google-github-actions/setup-gcloud@v2
