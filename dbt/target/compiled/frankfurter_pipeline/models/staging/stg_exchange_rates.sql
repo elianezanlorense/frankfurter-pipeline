@@ -4,7 +4,7 @@ with source as (
         base_currency,
         target_currency,
         rate
-    from `frankfurter-pipeline`.`frankfurter_dev`.`exchange_rates`
+    from `zoocamp-project`.`frankfurter_dev`.`exchange_rates`
 ),
 renamed as (
     select
