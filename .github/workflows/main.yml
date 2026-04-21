@@ -1,0 +1,24 @@
+# .github/workflows/main.yml
+name: Pipeline CI
+
+on:
+  push:
+    branches:
+      - '*'
+
+jobs:
+  test-auth:
+    uses: ./.github/workflows/test-auth.yml
+    secrets: inherit
+
+  terraform:
+    needs: test-auth
+    uses: ./.github/workflows/terraform.yml
+    secrets: inherit
+    with:
+      branch: ${{ github.ref_name }}
+
+  dbt:
+    needs: terraform
+    uses: ./.github/workflows/dbt.yml
+    secrets: inherit
