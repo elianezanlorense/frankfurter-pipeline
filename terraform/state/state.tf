@@ -55,6 +55,12 @@ resource "google_iam_workload_identity_pool" "github" {
   description               = "OIDC pool for GitHub Actions"
 }
 
+resource "google_project_iam_member" "terraform_iam_admin" {
+  project = var.project_id
+  role    = "roles/resourcemanager.projectIamAdmin"
+  member  = "serviceAccount:${google_service_account.terraform_runner.email}"
+}
+
 resource "google_iam_workload_identity_pool_provider" "github" {
   workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
   workload_identity_pool_provider_id = "${var.project_id}-gh"
