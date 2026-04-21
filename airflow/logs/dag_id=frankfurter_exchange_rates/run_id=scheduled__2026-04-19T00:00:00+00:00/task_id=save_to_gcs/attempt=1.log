@@ -77,3 +77,33 @@ google.api_core.exceptions.Forbidden: 403 POST https://storage.googleapis.com/up
 : ('Request failed with status code', 403, 'Expected one of', <HTTPStatus.OK: 200>); 216)
 [2026-04-20T16:45:37.963+0000] {local_task_job_runner.py:234} INFO - Task exited with return code 1
 [2026-04-20T16:45:37.977+0000] {taskinstance.py:3280} INFO - 0 downstream tasks scheduled from follow-on schedule check
+[2026-04-20T17:19:43.697+0000] {taskinstance.py:1956} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: frankfurter_exchange_rates.save_to_gcs scheduled__2026-04-19T00:00:00+00:00 [queued]>
+[2026-04-20T17:19:43.699+0000] {taskinstance.py:1956} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: frankfurter_exchange_rates.save_to_gcs scheduled__2026-04-19T00:00:00+00:00 [queued]>
+[2026-04-20T17:19:43.699+0000] {taskinstance.py:2170} INFO - Starting attempt 1 of 2
+[2026-04-20T17:19:43.703+0000] {taskinstance.py:2191} INFO - Executing <Task(PythonOperator): save_to_gcs> on 2026-04-19 00:00:00+00:00
+[2026-04-20T17:19:43.705+0000] {standard_task_runner.py:60} INFO - Started process 180 to run task
+[2026-04-20T17:19:43.711+0000] {standard_task_runner.py:87} INFO - Running: ['***', 'tasks', 'run', 'frankfurter_exchange_rates', 'save_to_gcs', 'scheduled__2026-04-19T00:00:00+00:00', '--job-id', '3', '--raw', '--subdir', 'DAGS_FOLDER/frankfurter_dag.py', '--cfg-path', '/tmp/tmphonsi9ve']
+[2026-04-20T17:19:43.713+0000] {standard_task_runner.py:88} INFO - Job 3: Subtask save_to_gcs
+[2026-04-20T17:19:43.729+0000] {task_command.py:423} INFO - Running <TaskInstance: frankfurter_exchange_rates.save_to_gcs scheduled__2026-04-19T00:00:00+00:00 [running]> on host e56095cf499a
+[2026-04-20T17:19:43.750+0000] {taskinstance.py:2480} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='***' AIRFLOW_CTX_DAG_ID='frankfurter_exchange_rates' AIRFLOW_CTX_TASK_ID='save_to_gcs' AIRFLOW_CTX_EXECUTION_DATE='2026-04-19T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='scheduled__2026-04-19T00:00:00+00:00'
+[2026-04-20T17:19:43.758+0000] {taskinstance.py:2698} ERROR - Task failed with exception
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.8/site-packages/airflow/models/taskinstance.py", line 433, in _execute_task
+    result = execute_callable(context=context, **execute_callable_kwargs)
+  File "/home/airflow/.local/lib/python3.8/site-packages/airflow/operators/python.py", line 199, in execute
+    return_value = self.execute_callable()
+  File "/home/airflow/.local/lib/python3.8/site-packages/airflow/operators/python.py", line 216, in execute_callable
+    return self.python_callable(*self.op_args, **self.op_kwargs)
+  File "/opt/airflow/dags/frankfurter_dag.py", line 25, in save_to_gcs
+    bucket = client.bucket('frankfurter-dl"')
+  File "/home/airflow/.local/lib/python3.8/site-packages/google/cloud/storage/client.py", line 310, in bucket
+    return Bucket(client=self, name=bucket_name, user_project=user_project)
+  File "/home/airflow/.local/lib/python3.8/site-packages/google/cloud/storage/bucket.py", line 665, in __init__
+    name = _validate_name(name)
+  File "/home/airflow/.local/lib/python3.8/site-packages/google/cloud/storage/_helpers.py", line 100, in _validate_name
+    raise ValueError("Bucket names must start and end with a number or letter.")
+ValueError: Bucket names must start and end with a number or letter.
+[2026-04-20T17:19:43.760+0000] {taskinstance.py:1138} INFO - Marking task as UP_FOR_RETRY. dag_id=frankfurter_exchange_rates, task_id=save_to_gcs, execution_date=20260419T000000, start_date=20260420T171943, end_date=20260420T171943
+[2026-04-20T17:19:43.763+0000] {standard_task_runner.py:107} ERROR - Failed to execute job 3 for task save_to_gcs (Bucket names must start and end with a number or letter.; 180)
+[2026-04-20T17:19:43.768+0000] {local_task_job_runner.py:234} INFO - Task exited with return code 1
+[2026-04-20T17:19:43.775+0000] {taskinstance.py:3280} INFO - 0 downstream tasks scheduled from follow-on schedule check
