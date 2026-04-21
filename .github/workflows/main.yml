@@ -17,6 +17,11 @@ jobs:
     secrets: inherit
     with:
       branch: ${{ github.ref_name }}
+      
+  airflow:
+    needs: terraform
+    uses: ./.github/workflows/airflow.yml
+    secrets: inherit
 
   dbt:
     needs: terraform
