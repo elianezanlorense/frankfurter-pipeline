@@ -14,12 +14,10 @@ variable "location" {
 }
 
 #variable "bucket_name" {
- # type = string
+# type = string
 #}
 
-variable "project_number" {
-  type = string
-}
+
 
 variable "github_repository" {
   type = string

@@ -32,3 +32,6 @@ gh secret set GCP_SA_KEY < ~/frankfurter-pipeline-key.json
 
 # Adicionar o project ID como secret
 gh secret set GCP_PROJECT_ID --body="frankfurter-pipeline"
+
+
+gh workflow run bootstrap.yml --ref infra_rebuild

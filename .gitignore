@@ -21,3 +21,4 @@ airflow/logs/
 __pycache__/
 *.pyc
 .env
+.terraform.lock.hcl
