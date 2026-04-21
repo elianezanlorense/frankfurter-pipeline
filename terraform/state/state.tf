@@ -81,3 +81,11 @@ resource "google_service_account_iam_member" "github_wif_user" {
 data "google_project" "current" {
   project_id = var.project_id
 }
+
+variable "github_owner" {
+  type = string
+}
+
+variable "github_repo" {
+  type = string
+}
