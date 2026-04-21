@@ -1,62 +1,35 @@
-"""
-Backfill script for Frankfurter exchange rates.
-Fetches historical data using the date range endpoint and loads to BigQuery + GCS.
-
-Usage:
-    python backfill_exchange_rates.py --start 2024-01-01 --end 2024-12-31
-    python backfill_exchange_rates.py --start 2024-01-01  # end defaults to today
-"""
-
 import argparse
 import json
 import requests
 from datetime import date, datetime
 from google.cloud import bigquery, storage
 
-# ── Config ────────────────────────────────────────────────────────────────────
-PROJECT_ID   = "frankfurter-pipeline"
+# ── Config Sincronizada ──────────────────────────────────────────────────────
+PROJECT_ID   = "zoocamp-project"
 DATASET      = "frankfurter_dev"
 TABLE        = "exchange_rates"
-BUCKET_NAME  = "frankfurter-data-lake-dev"
+BUCKET_NAME  = "frankfurter-dl"
 TABLE_ID     = f"{PROJECT_ID}.{DATASET}.{TABLE}"
 # ─────────────────────────────────────────────────────────────────────────────
 
-
 def fetch_range(start: str, end: str) -> dict:
-    """Fetch all exchange rates between start and end date (inclusive)."""
+    """Busca o intervalo completo na API."""
     url = f"https://api.frankfurter.app/{start}..{end}"
     print(f"Fetching: {url}")
     response = requests.get(url, timeout=30)
     response.raise_for_status()
     return response.json()
 
-
 def save_to_gcs(data: dict, start: str, end: str) -> None:
-    """Save raw JSON response to GCS."""
+    """Salva o JSON bruto no Storage."""
     client = storage.Client(project=PROJECT_ID)
     bucket = client.bucket(BUCKET_NAME)
     blob = bucket.blob(f"raw/exchange_rates/backfill_{start}_{end}.json")
     blob.upload_from_string(json.dumps(data))
     print(f"Saved raw data to GCS: raw/exchange_rates/backfill_{start}_{end}.json")
 
-
 def build_rows(data: dict) -> list:
-    """
-    Convert the range API response into a flat list of rows.
-
-    API response format:
-    {
-        "amount": 1.0,
-        "base": "EUR",
-        "start_date": "2024-01-01",
-        "end_date": "2024-12-31",
-        "rates": {
-            "2024-01-02": {"AUD": 1.67, "BRL": 5.40, ...},
-            "2024-01-03": {...},
-            ...
-        }
-    }
-    """
+    """Transforma o JSON aninhado em lista de dicionários (rows)."""
     rows = []
     base = data["base"]
     for date_str, currencies in data["rates"].items():
@@ -69,9 +42,8 @@ def build_rows(data: dict) -> list:
             })
     return rows
 
-
 def deduplicate(client: bigquery.Client, rows: list) -> list:
-    """Remove rows that already exist in BigQuery (by date + target_currency)."""
+    """Evita duplicidade: remove o que já existe no BigQuery."""
     if not rows:
         return []
 
@@ -83,16 +55,19 @@ def deduplicate(client: bigquery.Client, rows: list) -> list:
         FROM `{TABLE_ID}`
         WHERE date IN ({dates_str})
     """
-    existing = {(r.date.isoformat(), r.target_currency) for r in client.query(query).result()}
+    try:
+        existing = {(r.date.isoformat(), r.target_currency) for r in client.query(query).result()}
+    except Exception:
+        # Se a tabela ainda não existir, não há o que deduplicar
+        return rows
 
     if existing:
         print(f"Found {len(existing)} existing rows — skipping duplicates.")
 
     return [r for r in rows if (r["date"], r["target_currency"]) not in existing]
 
-
 def load_to_bigquery(rows: list) -> None:
-    """Insert rows into BigQuery in batches of 500."""
+    """Insere no BigQuery usando batches de 500 para estabilidade."""
     if not rows:
         print("No new rows to insert.")
         return
@@ -117,34 +92,25 @@ def load_to_bigquery(rows: list) -> None:
 
     print(f"✅ Done! Loaded {total_inserted} rows into {TABLE_ID}")
 
-
 def main():
-    parser = argparse.ArgumentParser(description="Backfill Frankfurter exchange rates into BigQuery.")
-    parser.add_argument("--start", required=True, help="Start date (YYYY-MM-DD), min: 1999-01-04")
-    parser.add_argument("--end",   default=date.today().isoformat(), help="End date (YYYY-MM-DD), default: today")
+    parser = argparse.ArgumentParser(description="Backfill Frankfurter exchange rates.")
+    parser.add_argument("--start", required=True, help="YYYY-MM-DD")
+    parser.add_argument("--end",   default=date.today().isoformat(), help="YYYY-MM-DD")
     args = parser.parse_args()
 
-    # Validate dates
-    try:
-        start = datetime.strptime(args.start, "%Y-%m-%d").date()
-        end   = datetime.strptime(args.end,   "%Y-%m-%d").date()
-    except ValueError:
-        raise ValueError("Dates must be in YYYY-MM-DD format")
+    # Validação básica de datas
+    start_dt = datetime.strptime(args.start, "%Y-%m-%d").date()
+    end_dt   = datetime.strptime(args.end,   "%Y-%m-%d").date()
 
-    if start < date(1999, 1, 4):
-        raise ValueError("Frankfurter API only has data from 1999-01-04")
-    if start > end:
-        raise ValueError("--start must be before --end")
+    print(f"Iniciando backfill de {start_dt} até {end_dt}")
 
-    print(f"Backfilling exchange rates from {start} to {end}")
-
-    # Fetch, save, and load
-    data = fetch_range(str(start), str(end))
-    save_to_gcs(data, str(start), str(end))
+    data = fetch_range(str(start_dt), str(end_dt))
+    save_to_gcs(data, str(start_dt), str(end_dt))
+    
     rows = build_rows(data)
     print(f"Built {len(rows)} rows from API response")
+    
     load_to_bigquery(rows)
-
 
 if __name__ == "__main__":
     main()
