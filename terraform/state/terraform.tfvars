@@ -1,3 +1,2 @@
-#bucket_name = "frankfurter-tf-state"'
-project_number = "198485878590"
-github_repository = "elianezanlorense/franktfurter-pipeline"
+project_number = data.google_project.current.number
+github_repository = "${var.github_owner}/${var.github_repo}"

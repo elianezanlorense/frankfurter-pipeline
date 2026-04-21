@@ -77,3 +77,7 @@ resource "google_service_account_iam_member" "github_wif_user" {
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/projects/${var.project_number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github.workload_identity_pool_id}/attribute.repository/${var.github_repository}"
 }
+
+data "google_project" "current" {
+  project_id = var.project_id
+}
