@@ -17,9 +17,7 @@ variable "location" {
  # type = string
 #}
 
-variable "project_number" {
-  type = string
-}
+
 
 variable "github_repository" {
   type = string
