@@ -5,14 +5,13 @@ on:
     branches:
       - '*'
 
-env:
-  GCP_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
-  DBT_DATASET: ${{ vars.DBT_DATASET }}
-  GCP_LOCATION: ${{ vars.GCP_LOCATION }}
-
 jobs:
   dbt:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./dbt
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,33 +27,28 @@ jobs:
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+          export_environment_variables: true
 
       - name: Setup dbt profiles
         run: |
           mkdir -p ~/.dbt
           cat > ~/.dbt/profiles.yml << EOF
-          frankfurter_pipeline:
+          zoocamp_project:
+            target: dev
             outputs:
               dev:
                 type: bigquery
                 method: service-account
-                project: ${{ secrets.GCP_PROJECT_ID }}
-                dataset: ${{ vars.DBT_DATASET }}
-                location: ${{ vars.GCP_LOCATION }}
-                threads: 1
+                project: zoocamp-project
+                dataset: frankfurter_dev
+                location: EU
+                threads: 4
                 keyfile: $GOOGLE_APPLICATION_CREDENTIALS
-            target: dev
           EOF
 
       - name: dbt deps
         run: dbt deps
-        working-directory: ./dbt
 
-      - name: dbt compile
-        run: dbt compile
-        working-directory: ./dbt
-
-      - name: dbt test
-        run: dbt test
-        working-directory: ./dbt
+      - name: dbt run
+        run: dbt run
