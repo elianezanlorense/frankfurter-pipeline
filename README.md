@@ -22,3 +22,6 @@ gcloud compute instances describe airflow-vm \
 gsutil cp validacao.txt gs://frankfurter-dl/
 bq query --use_legacy_sql=false 'SELECT 1'
 bq load --source_format=CSV --autodetect raw_data.exchange_rates gs://frankfurter-dl/validacao.txt
+
+
+gcloud projects describe zoocamp-project --format="value(projectNumber)"
