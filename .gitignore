@@ -12,3 +12,4 @@ dbt/target/
 key.json
 key.json
 key.json
+airflow/logs/
