@@ -2,7 +2,8 @@
 set -e
 
 apt-get update -y
-apt-get install -y python3-pip python3-venv
+apt-get install -y python3-pip python3-venv ca-certificates
+update-ca-certificates
 
 # Cria usuário airflow
 useradd -m -s /bin/bash airflow || true
@@ -69,6 +70,7 @@ After=network.target
 User=airflow
 Environment=AIRFLOW_HOME=/opt/airflow
 Environment=AIRFLOW__CORE__LOAD_EXAMPLES=False
+Environment=AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=False
 Environment=PATH=/opt/airflow/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ExecStart=/opt/airflow/venv/bin/airflow scheduler
 Restart=always
