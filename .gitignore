@@ -5,10 +5,19 @@ bootstrap/state/*.tfstate.*
 *.tfstate
 *.tfstate.*
 bootstrap/state/.terraform.lock.hcl
+<<<<<<< HEAD
+.csvairflow/logs/
+=======
 .csvdbt/logs/
 dbt/target/
 dbt/logs/
 dbt/target/
+
 key.json
 key.json
 key.json
+>>>>>>> dev
+airflow/logs/
+__pycache__/
+*.pyc
+.env

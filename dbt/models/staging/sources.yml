@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: frankfurter_dev
+    database: zoocamp-project
+    schema: frankfurter_dev
+    tables:
+      - name: exchange_rates
+

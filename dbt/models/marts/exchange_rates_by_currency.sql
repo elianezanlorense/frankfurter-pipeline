@@ -1,12 +1,8 @@
-
-
-  create or replace view `frankfurter-pipeline`.`frankfurter_dev`.`exchange_rates_by_currency`
-  OPTIONS()
-  as with base as (
+with base as (
     select
         target_currency,
         rate
-    from `frankfurter-pipeline`.`frankfurter_dev`.`stg_exchange_rates`
+    from {{ ref('stg_exchange_rates') }}
 )
 select
     target_currency,
@@ -16,5 +12,4 @@ select
     COUNT(*) as total_records
 from base
 group by target_currency
-order by avg_rate desc;
-
+order by avg_rate desc

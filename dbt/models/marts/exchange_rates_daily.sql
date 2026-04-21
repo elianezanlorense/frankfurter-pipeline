@@ -4,7 +4,7 @@ with base as (
         base_currency,
         target_currency,
         rate
-    from `frankfurter-pipeline`.`frankfurter_dev`.`stg_exchange_rates`
+    from {{ ref('stg_exchange_rates') }}
 )
 select
     date,
