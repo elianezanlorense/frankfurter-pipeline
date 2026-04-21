@@ -1,5 +1,6 @@
 terraform {
   required_version = ">= 1.0"
+
   required_providers {
     google = {
       source  = "hashicorp/google"
@@ -60,7 +61,7 @@ resource "google_project_iam_member" "terraform_iam_admin" {
 }
 
 resource "google_iam_workload_identity_pool" "github" {
-  workload_identity_pool_id = "${var.project_id}-github-pool"
+  workload_identity_pool_id = "${var.project_id}-github-pool-2"
   display_name              = "GitHub Actions Pool"
   description               = "OIDC pool for GitHub Actions"
 }
