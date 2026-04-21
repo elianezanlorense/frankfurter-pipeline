@@ -1,0 +1,43 @@
+name: Airflow CI
+
+on:
+  workflow_call:
+
+jobs:
+  deploy-dags:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+          export_environment_variables: true
+
+      - name: Install gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get VM IP
+        id: vm_ip
+        run: |
+          IP=$(gcloud compute instances describe airflow-vm \
+            --zone=europe-west1-b \
+            --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+          echo "ip=$IP" >> $GITHUB_OUTPUT
+
+      - name: Copy DAGs to VM
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/airflow_key
+          chmod 600 /tmp/airflow_key
+          scp -o StrictHostKeyChecking=no -i /tmp/airflow_key \
+            airflow/dags/*.py \
+            airflow@${{ steps.vm_ip.outputs.ip }}:/opt/airflow/dags/
+
+      - name: Trigger DAG
+        run: |
+          ssh -o StrictHostKeyChecking=no -i /tmp/airflow_key \
+            airflow@${{ steps.vm_ip.outputs.ip }} \
+            "source /opt/airflow/venv/bin/activate && export AIRFLOW_HOME=/opt/airflow && airflow dags trigger frankfurter_exchange_rates"

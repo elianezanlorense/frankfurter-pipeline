@@ -39,10 +39,10 @@ resource "google_storage_bucket" "data_lake" {
 
 # --- BIGQUERY ---
 resource "google_bigquery_dataset" "dataset" {
-  dataset_id = var.bigquery_dataset
-  project    = var.project_id
-  location   = var.location
-  delete_contents_on_destroy = true 
+  dataset_id                 = var.bigquery_dataset
+  project                    = var.project_id
+  location                   = var.location
+  delete_contents_on_destroy = true
 }
 
 resource "google_bigquery_table" "exchange_rates" {
@@ -90,7 +90,17 @@ resource "google_compute_instance" "airflow_vm" {
     scopes = ["cloud-platform"]
   }
 
+  lifecycle {
+    replace_triggered_by = [
+      terraform_data.ssh_key
+    ]
+  }
+
   depends_on = [google_service_account_iam_member.allow_github_to_use_compute_sa]
+}
+
+resource "terraform_data" "ssh_key" {
+  input = var.ssh_public_key
 }
 
 # --- FIREWALL ---
@@ -106,4 +116,4 @@ resource "google_compute_firewall" "allow_airflow" {
 
   source_ranges = ["0.0.0.0/0"]
   target_tags   = ["airflow"]
-  }
+}
