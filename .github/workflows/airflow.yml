@@ -49,5 +49,5 @@ jobs:
             airflow@${{ steps.vm_ip.outputs.ip }} \
             "source /opt/airflow/venv/bin/activate && \
              export AIRFLOW_HOME=/opt/airflow && \
-             sleep 30 && \
+             sleep 120 && \
              airflow dags trigger frankfurter_exchange_rates"
