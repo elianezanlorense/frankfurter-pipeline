@@ -15,10 +15,12 @@ variable "location" {
 
 variable "data_lake_bucket_name" {
   type = string
+  default = "frankfurter-dl"
 }
 
 variable "bigquery_dataset" {
   type = string
+  default = "frankfurter_dev"
 }
 
 variable "zone" {
