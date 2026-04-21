@@ -50,10 +50,9 @@ variable "vm_disk_size" {
 
 variable "ssh_user" {
   type    = string
-  default = "ubuntu"
+  default = "airflow"
 }
 
 variable "ssh_public_key" {
   type    = string
-  default = ""
 }

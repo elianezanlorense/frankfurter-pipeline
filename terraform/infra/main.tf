@@ -80,6 +80,12 @@ resource "google_compute_instance" "airflow_vm" {
 
   tags = ["airflow"]
 
+  metadata = {
+    ssh-keys = "airflow:${var.ssh_public_key}"
+  }
+
+  metadata_startup_script = file("${path.module}/startup_script.sh")
+
   service_account {
     scopes = ["cloud-platform"]
   }
@@ -100,4 +106,4 @@ resource "google_compute_firewall" "allow_airflow" {
 
   source_ranges = ["0.0.0.0/0"]
   target_tags   = ["airflow"]
-}
+  }

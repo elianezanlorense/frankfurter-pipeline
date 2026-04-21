@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./terraform/infra 
+        working-directory: ./terraform/infra
 
     steps:
       - name: Checkout
@@ -31,11 +31,28 @@ jobs:
         run: terraform init -reconfigure
 
       - name: Terraform Plan
-        run: terraform plan -var-file=terraform.tfvars
+        run: terraform plan -var-file=terraform.tfvars -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
 
       - name: Terraform Apply
         if: inputs.branch == 'dev'
-        run: terraform apply -auto-approve -var-file=terraform.tfvars
+        run: terraform apply -auto-approve -var-file=terraform.tfvars -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
+
+      - name: Get VM IP
+        if: inputs.branch == 'dev'
+        id: vm_ip
+        run: |
+          IP=$(terraform output -raw airflow_vm_external_ip)
+          echo "ip=$IP" >> $GITHUB_OUTPUT
+
+      - name: Copy DAGs to VM
+        if: inputs.branch == 'dev'
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/airflow_key
+          chmod 600 /tmp/airflow_key
+          sleep 30
+          scp -o StrictHostKeyChecking=no -i /tmp/airflow_key \
+            ../../airflow/dags/*.py \
+            airflow@${{ steps.vm_ip.outputs.ip }}:/opt/airflow/dags/
 
       - name: Release state lock on failure
         if: failure()
