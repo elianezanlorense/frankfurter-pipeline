@@ -1,7 +1,10 @@
 name: Terraform CI
 
 on:
-  workflow_dispatch:
+  workflow_run:
+    workflows: ["Teste GCP Auth"]
+    types:
+      - completed
 
 jobs:
   terraform:

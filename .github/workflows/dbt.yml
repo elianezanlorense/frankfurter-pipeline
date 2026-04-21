@@ -1,9 +1,10 @@
 name: dbt CI
 
 on:
-  push:
-    branches:
-      - '*'
+  workflow_run:
+    workflows: ["Terraform CI"]
+    types:
+      - completed
 
 jobs:
   dbt:

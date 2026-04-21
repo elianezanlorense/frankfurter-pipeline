@@ -3,7 +3,7 @@ name: Teste GCP Auth
 on:
   push:
     branches:
-      - teste-ci
+      - '*'
   workflow_dispatch:
 
 jobs:
