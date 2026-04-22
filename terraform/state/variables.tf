@@ -1,6 +1,5 @@
 variable "project_id" {
   type    = string
-  default = "zoocamp-project"
 }
 
 variable "region" {

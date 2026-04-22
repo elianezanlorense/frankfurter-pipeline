@@ -1,37 +1,29 @@
-gcloud auth application-default set-quota-project frankfurter-pipeline
+gcloud projects create valida-zoocamp --name="valida-zoocamp"
+gcloud billing accounts list
+gcloud billing projects link valida-zoocamp --billing-account=01D180-1A236B-7BC5DB
+
 gcloud services enable \
-  cloudresourcemanager.googleapis.com \
-  storage.googleapis.com \
+  compute.googleapis.com \
   bigquery.googleapis.com \
-  iam.googleapis.com
+  storage.googleapis.com \
+  iam.googleapis.com \
+  cloudresourcemanager.googleapis.com \
+  iamcredentials.googleapis.com \
+  --project=valida-zoocampgcloud services enable \
+  compute.googleapis.com \
+  bigquery.googleapis.com \
+  storage.googleapis.com \
+  iam.googleapis.com \
+  cloudresourcemanager.googleapis.com \
+  iamcredentials.googleapis.com \
+  --project=valida-zoocamp
 
-  # 1. Criar a Service Account
-gcloud iam service-accounts create github-actions-sa \
-  --display-name="GitHub Actions Service Account"
+cd terraform/state
+terraform init
+terraform plan
+terraform apply
 
-
-  # Atribuir roles necessárias
-gcloud projects add-iam-policy-binding frankfurter-pipeline \
-  --member="serviceAccount:github-actions-sa@frankfurter-pipeline.iam.gserviceaccount.com" \
-  --role="roles/storage.admin"
-
-gcloud projects add-iam-policy-binding frankfurter-pipeline \
-  --member="serviceAccount:github-actions-sa@frankfurter-pipeline.iam.gserviceaccount.com" \
-  --role="roles/bigquery.admin"
-
-gcloud projects add-iam-policy-binding frankfurter-pipeline \
-  --member="serviceAccount:github-actions-sa@frankfurter-pipeline.iam.gserviceaccount.com" \
-  --role="roles/iam.serviceAccountUser"
-
-  gcloud iam service-accounts keys create ~/frankfurter-pipeline-key.json \
-  --iam-account=github-actions-sa@frankfurter-pipeline.iam.gserviceaccount.com
-
-
-  # Adicionar a chave como secret no GitHub
-gh secret set GCP_SA_KEY < ~/frankfurter-pipeline-key.json
-
-# Adicionar o project ID como secret
-gh secret set GCP_PROJECT_ID --body="frankfurter-pipeline"
-
-
-gh workflow run bootstrap.yml --ref infra_rebuild
+terraform output
+bucket_name = "valida-zoocamp-tf-state"
+terraform_runner_sa_email = "github-actions-tf@valida-zoocamp.iam.gserviceaccount.com"
+workload_identity_provider = "projects/948484036275/locations/global/workloadIdentityPools/valida-zoocamp-github-pool-2/providers/valida-zoocamp-gh"
