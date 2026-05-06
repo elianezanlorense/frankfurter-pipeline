@@ -1,22 +1,13 @@
-gcloud projects create valida-zoocamp --name="valida-zoocamp"
-gcloud billing accounts list
-gcloud billing projects link valida-zoocamp --billing-account=01D180-1A236B-7BC5DB
+gh auth login
+gh secret set SSH_PUBLIC_KEY < ~/.ssh/zoocamp_rsa.pub
+gh secret set SSH_PRIVATE_KEY < ~/.ssh/zoocamp_rsa  
+gh secret list
+gh variable set GCP_PROJECT_ID --body "$(terraform output -raw project_id)"
 
-gcloud services enable \
-  compute.googleapis.com \
-  bigquery.googleapis.com \
-  storage.googleapis.com \
-  iam.googleapis.com \
-  cloudresourcemanager.googleapis.com \
-  iamcredentials.googleapis.com \
-  --project=valida-zoocampgcloud services enable \
-  compute.googleapis.com \
-  bigquery.googleapis.com \
-  storage.googleapis.com \
-  iam.googleapis.com \
-  cloudresourcemanager.googleapis.com \
-  iamcredentials.googleapis.com \
-  --project=valida-zoocamp
+gh variable set GCP_SA_EMAIL --body "$(terraform output -raw terraform_runner_sa_email)"
+
+gh variable set GCP_WIF_PROVIDER --body "$(terraform output -raw workload_identity_provider)"
+gh variable list
 
 cd terraform/state
 terraform init
