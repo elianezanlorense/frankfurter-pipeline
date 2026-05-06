@@ -9,6 +9,8 @@ gh variable set GCP_SA_EMAIL --body "$(terraform output -raw terraform_runner_sa
 gh variable set GCP_WIF_PROVIDER --body "$(terraform output -raw workload_identity_provider)"
 gh variable list
 
+od
+
 cd terraform/state
 terraform init
 terraform plan
