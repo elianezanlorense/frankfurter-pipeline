@@ -6,71 +6,76 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 5.0"
     }
+
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
 }
 
-provider "google" {
-  project = var.project_id
-  region  = var.region
+# Gera o sufixo aleatório para garantir que o ID do projeto seja único no mundo
+resource "random_id" "suffix" {
+  byte_length = 2
 }
 
-data "google_project" "current" {
-  project_id = var.project_id
+locals {
+  project_id = "zoocamp-${random_id.suffix.hex}"
 }
 
+# CRIAÇÃO DO PROJETO
+resource "google_project" "my_project" {
+  name            = local.project_id
+  project_id      = local.project_id
+  billing_account = var.billing_account
+}
+
+# BUCKET DE ESTADO
 resource "google_storage_bucket" "terraform_state" {
-  name                        = "${var.project_id}-tf-state"
+  name                        = "${local.project_id}-tf-state"
+  project                     = google_project.my_project.project_id
   location                    = var.location
   uniform_bucket_level_access = true
   force_destroy               = true
+
+  depends_on = [google_project.my_project]
 }
 
+# SERVICE ACCOUNT
 resource "google_service_account" "terraform_runner" {
+  project      = google_project.my_project.project_id
   account_id   = "github-actions-tf"
   display_name = "GitHub Actions Terraform Runner"
 }
 
-resource "google_project_iam_member" "terraform_compute_instance_admin" {
-  project = var.project_id
-  role    = "roles/compute.instanceAdmin.v1"
+# PERMISSÕES IAM (Ajustadas para referenciar o recurso do projeto)
+resource "google_project_iam_member" "terraform_permissions" {
+  for_each = toset([
+    "roles/compute.instanceAdmin.v1",
+    "roles/compute.securityAdmin",
+    "roles/storage.admin",
+    "roles/bigquery.admin",
+    "roles/resourcemanager.projectIamAdmin",
+    "roles/iam.workloadIdentityPoolAdmin"
+  ])
+
+  project = google_project.my_project.project_id
+  role    = each.key
   member  = "serviceAccount:${google_service_account.terraform_runner.email}"
 }
 
-resource "google_project_iam_member" "terraform_compute_security_admin" {
-  project = var.project_id
-  role    = "roles/compute.securityAdmin"
-  member  = "serviceAccount:${google_service_account.terraform_runner.email}"
-}
-
-resource "google_project_iam_member" "terraform_storage_admin" {
-  project = var.project_id
-  role    = "roles/storage.admin"
-  member  = "serviceAccount:${google_service_account.terraform_runner.email}"
-}
-
-resource "google_project_iam_member" "terraform_bigquery_admin" {
-  project = var.project_id
-  role    = "roles/bigquery.admin"
-  member  = "serviceAccount:${google_service_account.terraform_runner.email}"
-}
-
-resource "google_project_iam_member" "terraform_iam_admin" {
-  project = var.project_id
-  role    = "roles/resourcemanager.projectIamAdmin"
-  member  = "serviceAccount:${google_service_account.terraform_runner.email}"
-}
-
+# WORKLOAD IDENTITY POOL
 resource "google_iam_workload_identity_pool" "github" {
-  workload_identity_pool_id = "${var.project_id}-github-pool-2"
+  project                   = google_project.my_project.project_id
+  workload_identity_pool_id = "${local.project_id}-github-pool-2"
   display_name              = "GitHub Actions Pool"
-  description               = "OIDC pool for GitHub Actions"
 }
 
 resource "google_iam_workload_identity_pool_provider" "github" {
+  project                            = google_project.my_project.project_id
   workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
-  workload_identity_pool_provider_id = "${var.project_id}-gh"
+  workload_identity_pool_provider_id = "${local.project_id}-gh"
   display_name                       = "GitHub Provider"
-  description                        = "OIDC provider for GitHub Actions"
 
   attribute_mapping = {
     "google.subject"       = "assertion.sub"
@@ -86,14 +91,9 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   attribute_condition = "assertion.repository == '${var.github_repository}'"
 }
 
+# MEMBER DO WIF (Ajustado para usar o número do projeto criado dinamicamente)
 resource "google_service_account_iam_member" "github_wif_user" {
   service_account_id = google_service_account.terraform_runner.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/projects/${data.google_project.current.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github.workload_identity_pool_id}/attribute.repository/${var.github_repository}"
-}
-
-resource "google_project_iam_member" "terraform_workload_identity_admin" {
-  project = var.project_id
-  role    = "roles/iam.workloadIdentityPoolAdmin"
-  member  = "serviceAccount:${google_service_account.terraform_runner.email}"
+  member             = "principalSet://iam.googleapis.com/projects/${google_project.my_project.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github.workload_identity_pool_id}/attribute.repository/${var.github_repository}"
 }
