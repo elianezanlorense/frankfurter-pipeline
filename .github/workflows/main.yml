@@ -6,6 +6,11 @@ on:
     branches:
       - '*'
 
+# ESSA É A CHAVE: Dá permissão para os workflows filhos gerarem o token do GCP
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   test-auth:
     uses: ./.github/workflows/test-auth.yml
