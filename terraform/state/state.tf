@@ -41,6 +41,14 @@ resource "google_storage_bucket" "terraform_state" {
   depends_on = [google_project.my_project]
 }
 
+resource "google_project_service" "iam_credentials" {
+  project = local.project_id
+  service = "iamcredentials.googleapis.com"
+
+  # Recomendado para APIs críticas para não interromper o CI/CD acidentalmente
+  disable_on_destroy = false
+}
+
 # SERVICE ACCOUNT
 resource "google_service_account" "terraform_runner" {
   project      = google_project.my_project.project_id
@@ -69,6 +77,8 @@ resource "google_iam_workload_identity_pool" "github" {
   project                   = google_project.my_project.project_id
   workload_identity_pool_id = "${local.project_id}-github-pool-2"
   display_name              = "GitHub Actions Pool"
+
+  depends_on = [google_project_service.iam_credentials]
 }
 
 resource "google_iam_workload_identity_pool_provider" "github" {
