@@ -1,15 +1,13 @@
+# .github/workflows/test-auth.yml
 name: Teste GCP Auth
 
 on:
   workflow_call:
-  # Permite rodar manualmente para testar se desejar
   workflow_dispatch: 
 
 jobs:
   test-auth:
     runs-on: ubuntu-latest
-
-    # IMPORTANTE: Necessário para o Workload Identity Federation funcionar
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -21,16 +19,12 @@ jobs:
       - name: Autenticar no GCP
         uses: google-github-actions/auth@v2
         with:
-          # Usando os outputs do seu Terraform
+          # Se der erro, certifique-se que o gh variable list mostra esses nomes exatos
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_SA_EMAIL }}
 
       - name: Instalar gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Ver conta autenticada
-        run: gcloud auth list
-
       - name: Testar acesso ao GCS
-        # Usamos o ID do projeto dinâmico para listar os buckets
         run: gcloud storage buckets list --project ${{ vars.GCP_PROJECT_ID }}
