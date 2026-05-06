@@ -9,7 +9,14 @@ gh variable set GCP_SA_EMAIL --body "$(terraform output -raw terraform_runner_sa
 gh variable set GCP_WIF_PROVIDER --body "$(terraform output -raw workload_identity_provider)"
 gh variable list
 
-od
+# Seta o Project ID
+gh variable set GCP_PROJECT_ID --body "$(terraform output -raw project_id | tr -d '\r\n')"
+
+# Seta o E-mail da Service Account (usando seu output terraform_runner_sa_email)
+gh variable set GCP_SA_EMAIL --body "$(terraform output -raw terraform_runner_sa_email | tr -d '\r\n')"
+
+# Seta o WIF Provider
+gh variable set GCP_WIF_PROVIDER --body "$(terraform output -raw workload_identity_provider | tr -d '\r\n')"
 
 cd terraform/state
 terraform init
