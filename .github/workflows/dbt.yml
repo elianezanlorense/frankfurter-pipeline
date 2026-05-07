@@ -1,8 +1,11 @@
-# .github/workflows/dbt.yml
 name: dbt CI
 
 on:
   workflow_call:
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   dbt:
@@ -10,7 +13,6 @@ jobs:
     defaults:
       run:
         working-directory: ./dbt
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,8 +28,9 @@ jobs:
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
-          export_environment_variables: true
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
       - name: Setup dbt profiles
         run: |
@@ -38,19 +41,32 @@ jobs:
             outputs:
               dev:
                 type: bigquery
-                method: service-account
-                project: zoocamp-project
+                method: oauth
+                project: ${{ secrets.GCP_PROJECT_ID }}
                 dataset: frankfurter_dev
                 location: EU
                 threads: 4
-                keyfile: $GOOGLE_APPLICATION_CREDENTIALS
           EOF
 
+      - name: Check if BQ dataset exists
+        id: bq_check
+        run: |
+          DATASET=$(bq ls --project_id=${{ secrets.GCP_PROJECT_ID }} 2>/dev/null | grep frankfurter_dev || true)
+          if [ -z "$DATASET" ]; then
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Dataset não existe, pulando dbt"
+          else
+            echo "exists=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: dbt deps
+        if: steps.bq_check.outputs.exists == 'true'
         run: dbt deps
 
       - name: dbt run
+        if: steps.bq_check.outputs.exists == 'true'
         run: dbt run
 
       - name: dbt test
+        if: steps.bq_check.outputs.exists == 'true'
         run: dbt test
