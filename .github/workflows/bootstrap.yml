@@ -11,7 +11,10 @@ jobs:
         working-directory: ./terraform/state
     steps:
       - uses: actions/checkout@v4
+
       - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -25,3 +28,23 @@ jobs:
         run: |
           terraform apply -auto-approve \
             -var="github_repository=${{ github.repository }}"
+
+      - name: Set GitHub Secrets
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          gh secret set GCP_TF_BUCKET \
+            --repo ${{ github.repository }} \
+            --body "$(terraform output -raw bucket_name)"
+
+          gh secret set GCP_SA_EMAIL \
+            --repo ${{ github.repository }} \
+            --body "$(terraform output -raw terraform_runner_sa_email)"
+
+          gh secret set GCP_WIF_PROVIDER \
+            --repo ${{ github.repository }} \
+            --body "$(terraform output -raw workload_identity_provider)"
+
+          gh secret set GCP_PROJECT_ID \
+            --repo ${{ github.repository }} \
+            --body "$(terraform output -raw project_id)"

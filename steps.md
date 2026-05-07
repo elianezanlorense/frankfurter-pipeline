@@ -7,7 +7,7 @@ gh secret set GCP_TF_BUCKET \
   --body "$(terraform output -raw bucket_name)"
 
 gh secret set GCP_PROJECT_ID \
-  --repo elianezanlorense/frankfurter-pipeline \
+  --repo elianezanlorense/frankfurter-pipeline \'vali
   --body "$(terraform output -raw project_id)"
 
 gh secret set GCP_SA_EMAIL \
