@@ -1,4 +1,3 @@
-# .github/workflows/test-auth.yml
 name: Teste GCP Auth
 
 on:
@@ -25,6 +24,8 @@ jobs:
       - name: Autenticar no GCP
         uses: google-github-actions/auth@v2
         with:
+          # Adicionamos o project_id explicitamente aqui
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SA_EMAIL }}
 
