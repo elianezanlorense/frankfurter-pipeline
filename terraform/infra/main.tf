@@ -100,7 +100,7 @@ resource "google_compute_instance" "airflow_vm" {
 
   network_interface {
     network = "default"
-    access_config {} 
+    access_config {}
   }
 
   tags = ["airflow"]
@@ -109,7 +109,11 @@ resource "google_compute_instance" "airflow_vm" {
     ssh-keys = "${var.ssh_user}:${var.ssh_public_key}"
   }
 
-  metadata_startup_script = file("${path.module}/startup_script.sh")
+  metadata_startup_script = templatefile("${path.module}/startup_script.sh", {
+    project_id  = var.project_id
+    bucket_name = var.data_lake_bucket_name
+    dataset     = var.bigquery_dataset
+  })
 
   service_account {
     email  = "${data.google_project.project.number}-compute@developer.gserviceaccount.com"
@@ -142,4 +146,3 @@ resource "google_compute_firewall" "allow_airflow" {
 
   source_ranges = ["0.0.0.0/0"]
   target_tags   = ["airflow"]
-}
