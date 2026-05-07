@@ -16,6 +16,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+    name: Debug Secret Check
+        run: 
+          echo "Verificando se os segredos possuem conteúdo..."
+          if [ -z "${{ secrets.GCP_WIF_PROVIDER }}" ]; then echo "ERRO: WIF Provider está VAZIO"; else echo "WIF Provider tem conteúdo"; fi
+          if [ -z "${{ secrets.GCP_SA_EMAIL }}" ]; then echo "ERRO: SA Email está VAZIO"; else echo "SA Email tem conteúdo"; fi
+
       - name: Autenticar no GCP
         uses: google-github-actions/auth@v2
         with:
