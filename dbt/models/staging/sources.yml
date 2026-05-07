@@ -1,7 +1,7 @@
 version: 2
 sources:
   - name: frankfurter_dev
-    database: "{{ env_var('DBT_PROJECT_ID') }}"
+    database: "{{ env_var("GCP_PROJECT_ID") }}"
     schema: frankfurter_dev
     tables:
       - name: exchange_rates
