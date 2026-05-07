@@ -15,18 +15,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Debug Secrets
+        env:
+          WIF: ${{ secrets.GCP_WIF_PROVIDER }}
+          SA: ${{ secrets.GCP_SA_EMAIL }}
+          PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          echo "WIF length: ${#WIF}"
+          echo "SA length: ${#SA}"
+          echo "PROJECT length: ${#PROJECT}"
+          echo "WIF prefix: ${WIF:0:30}"
+
       - name: Autenticar no GCP
-        id: auth
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SA_EMAIL }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-
-      - name: Instalar gcloud
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Testar acesso ao GCS
-        run: |
-          gcloud auth list
-          gcloud storage buckets list --project ${{ secrets.GCP_PROJECT_ID }}
