@@ -74,6 +74,7 @@ resource "google_project_iam_member" "terraform_permissions" {
     "roles/bigquery.admin",
     "roles/resourcemanager.projectIamAdmin",
     "roles/iam.workloadIdentityPoolAdmin",
+      "roles/iam.serviceAccountAdmin",
   ])
   project    = google_project.de_project.project_id
   role       = each.key
