@@ -1,6 +1,33 @@
 
 after state
 
+
+gh secret set GCP_TF_BUCKET \
+  --repo elianezanlorense/frankfurter-pipeline \
+  --body "$(terraform output -raw bucket_name)"
+
+gh secret set GCP_PROJECT_ID \
+  --repo elianezanlorense/frankfurter-pipeline \
+  --body "$(terraform output -raw project_id)"
+
+gh secret set GCP_SA_EMAIL \
+  --repo elianezanlorense/frankfurter-pipeline \
+  --body "$(terraform output -raw terraform_runner_sa_email)"
+
+gh secret set GCP_WIF_PROVIDER \
+  --repo elianezanlorense/frankfurter-pipeline \
+  --body "$(terraform output -raw workload_identity_provider)"
+
+gh secret set SSH_PRIVATE_KEY \
+  --repo elianezanlorense/frankfurter-pipeline \
+  < ~/.ssh/airflow_vm
+
+gh secret set SSH_PUBLIC_KEY \
+  --repo elianezanlorense/frankfurter-pipeline \
+  < ~/.ssh/airflow_vm.pub
+
+
+
 # Atualizar secrets
 gh secret set GCP_WIF_PROVIDER \
   --repo elianezanlorense/frankfurter-pipeline \
@@ -14,7 +41,7 @@ gh secret set GCP_PROJECT_ID \
   --repo elianezanlorense/frankfurter-pipeline \
   --body "zoocamp-8d63"
 
-
+grep -A3 "backend" ./terraform/infra/main.tf
 
 
 gh auth login
