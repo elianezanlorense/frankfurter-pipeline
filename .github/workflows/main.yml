@@ -28,6 +28,6 @@ jobs:
     secrets: inherit
 
   dbt:
-    needs: terraform
+    needs: airflow
     uses: ./.github/workflows/dbt.yml
     secrets: inherit
