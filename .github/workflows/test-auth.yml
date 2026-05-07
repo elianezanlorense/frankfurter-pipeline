@@ -2,15 +2,16 @@ name: Teste GCP Auth
 
 on:
   workflow_call:
-  workflow_dispatch: 
+  workflow_dispatch:
+
+permissions:          # ← Add this at workflow level, not just job level
+  contents: read
+  id-token: write
 
 jobs:
   test-auth:
     runs-on: ubuntu-latest
-    permissions:
-      contents: 'read'
-      id-token: 'write'
-
+    # permissions block here is redundant but harmless — can keep or remove
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,14 +19,20 @@ jobs:
       - name: Debug Secret Check
         run: |
           echo "Verificando se os segredos possuem conteúdo..."
-          if [ -z "${{ secrets.GCP_WIF_PROVIDER }}" ]; then echo "ERRO: WIF Provider está VAZIO"; else echo "WIF Provider tem conteúdo"; fi
-          if [ -z "${{ secrets.GCP_SA_EMAIL }}" ]; then echo "ERRO: SA Email está VAZIO"; else echo "SA Email tem conteúdo"; fi
+          if [ -z "${{ secrets.GCP_WIF_PROVIDER }}" ]; then
+            echo "ERRO: WIF Provider está VAZIO"
+          else
+            echo "WIF Provider tem conteúdo"
+          fi
+          if [ -z "${{ secrets.GCP_SA_EMAIL }}" ]; then
+            echo "ERRO: SA Email está VAZIO"
+          else
+            echo "SA Email tem conteúdo"
+          fi
 
       - name: Autenticar no GCP
         uses: google-github-actions/auth@v2
         with:
-          # Adicionamos o project_id explicitamente aqui
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SA_EMAIL }}
 
@@ -34,3 +41,4 @@ jobs:
 
       - name: Testar acesso ao GCS
         run: gcloud storage buckets list --project ${{ secrets.GCP_PROJECT_ID }}
+        #                                                                         ^ removed trailing period
