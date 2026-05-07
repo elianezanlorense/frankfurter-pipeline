@@ -20,7 +20,7 @@ jobs:
     secrets: inherit
     with:
       branch: ${{ github.ref_name }}
-      apply: false  # ← mude para true quando quiser aplicar
+      apply: true  # ← mude para true quando quiser aplicar
 
   airflow:
     needs: terraform
@@ -28,6 +28,6 @@ jobs:
     secrets: inherit
 
   dbt:
-    needs: terraform
+    needs: airflow
     uses: ./.github/workflows/dbt.yml
     secrets: inherit
