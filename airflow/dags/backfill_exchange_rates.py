@@ -4,12 +4,13 @@ import requests
 from datetime import date, datetime
 from google.cloud import bigquery, storage
 
-# ── Config Sincronizada ──────────────────────────────────────────────────────
-PROJECT_ID   = "zoocamp-project"
-DATASET      = "frankfurter_dev"
-TABLE        = "exchange_rates"
-BUCKET_NAME  = "frankfurter-dl"
-TABLE_ID     = f"{PROJECT_ID}.{DATASET}.{TABLE}"
+import os
+
+PROJECT_ID  = os.environ.get("GCP_PROJECT_ID")
+DATASET     = os.environ.get("AIRFLOW_DATASET", "frankfurter_dev")
+TABLE       = os.environ.get("AIRFLOW_TABLE", "exchange_rates")
+BUCKET_NAME = os.environ.get("AIRFLOW_BUCKET", "frankfurter-dl")
+TABLE_ID    = f"{PROJECT_ID}.{DATASET}.{TABLE}"
 # ─────────────────────────────────────────────────────────────────────────────
 
 def fetch_range(start: str, end: str) -> dict:
