@@ -7,7 +7,6 @@ terraform {
     }
   }
   backend "gcs" {
-    bucket = "zoocamp-project-tf-state"
     prefix = "terraform/state"
   }
 }

@@ -1,10 +1,13 @@
-# .github/workflows/main.yml
 name: Pipeline CI
 
 on:
   push:
     branches:
       - '*'
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   test-auth:
@@ -17,7 +20,8 @@ jobs:
     secrets: inherit
     with:
       branch: ${{ github.ref_name }}
-      
+      apply: false  # ← mude para true quando quiser aplicar
+
   airflow:
     needs: terraform
     uses: ./.github/workflows/airflow.yml

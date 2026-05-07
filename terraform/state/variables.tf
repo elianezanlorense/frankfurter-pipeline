@@ -1,22 +1,17 @@
-variable "project_id" {
-  type    = string
-}
-
 variable "region" {
   type    = string
   default = "europe-west1"
+}
+
+variable "billing_account" {
+  description = "O ID da conta de faturamento (ex: 01A2B3-C4D5E6-F7G8H9)"
+  type        = string
 }
 
 variable "location" {
   type    = string
   default = "EU"
 }
-
-#variable "bucket_name" {
-# type = string
-#}
-
-
 
 variable "github_repository" {
   type = string

@@ -1,30 +1,33 @@
-# .github/workflows/test-auth.yml
 name: Teste GCP Auth
 
 on:
   workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   test-auth:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Debug Secrets
+        env:
+          WIF: ${{ secrets.GCP_WIF_PROVIDER }}
+          SA: ${{ secrets.GCP_SA_EMAIL }}
+          PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          echo "WIF length: ${#WIF}"
+          echo "SA length: ${#SA}"
+          echo "PROJECT length: ${#PROJECT}"
+          echo "WIF prefix: ${WIF:0:30}"
+
       - name: Autenticar no GCP
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
-
-      - name: Instalar gcloud
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Setar projeto
-        run: gcloud config set project zoocamp-project
-
-      - name: Ver conta autenticada
-        run: gcloud config list account --format="value(core.account)"
-
-      - name: Testar acesso ao GCS
-        run: gcloud storage buckets list
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
