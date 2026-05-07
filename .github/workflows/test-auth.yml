@@ -1,17 +1,16 @@
-# .github/workflows/test-auth.yml
 name: Teste GCP Auth
 
 on:
   workflow_call:
-  workflow_dispatch: 
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   test-auth:
     runs-on: ubuntu-latest
-    permissions:
-      contents: 'read'
-      id-token: 'write'
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,7 +19,6 @@ jobs:
         id: auth
         uses: google-github-actions/auth@v2
         with:
-          # Usando os segredos que acabamos de validar no terminal
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SA_EMAIL }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
