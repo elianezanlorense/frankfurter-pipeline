@@ -20,11 +20,11 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           # Se der erro, certifique-se que o gh variable list mostra esses nomes exatos
-          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
-          service_account: ${{ vars.GCP_SA_EMAIL }}
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
 
       - name: Instalar gcloud
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Testar acesso ao GCS
-        run: gcloud storage buckets list --project ${{ vars.GCP_PROJECT_ID }}
+        run: gcloud storage buckets list --project ${{ secrets.GCP_PROJECT_ID }}
