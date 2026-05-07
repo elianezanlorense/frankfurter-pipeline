@@ -24,8 +24,23 @@ jobs:
       - name: Install gcloud
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Check if VM exists
+        id: vm_check
+        run: |
+          VM=$(gcloud compute instances list \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --filter="name=airflow-vm" \
+            --format="value(name)")
+          if [ -z "$VM" ]; then
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "VM não existe, pulando deploy"
+          else
+            echo "exists=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Get VM IP
         id: vm_ip
+        if: steps.vm_check.outputs.exists == 'true'
         run: |
           IP=$(gcloud compute instances describe airflow-vm \
             --zone=europe-west1-b \
@@ -34,6 +49,7 @@ jobs:
           echo "ip=$IP" >> $GITHUB_OUTPUT
 
       - name: Copy DAGs to VM
+        if: steps.vm_check.outputs.exists == 'true'
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/airflow_key
           chmod 600 /tmp/airflow_key
@@ -49,6 +65,7 @@ jobs:
             airflow@${{ steps.vm_ip.outputs.ip }}:/opt/airflow/dags/
 
       - name: Trigger DAG
+        if: steps.vm_check.outputs.exists == 'true'
         run: |
           ssh -o StrictHostKeyChecking=no -i /tmp/airflow_key \
             airflow@${{ steps.vm_ip.outputs.ip }} \
