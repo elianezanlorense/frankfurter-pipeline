@@ -6,6 +6,10 @@ on:
       branch:
         required: true
         type: string
+      apply:
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -14,33 +18,52 @@ permissions:
 jobs:
   terraform:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./terraform/infra
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Authenticate to GCP
+      - name: Autenticar no GCP
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SA_EMAIL }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Get TF State Bucket
+        working-directory: ./terraform/state
+        run: |
+          terraform init
+          BUCKET=$(terraform output -raw bucket_name)
+          PROJECT=$(terraform output -raw project_id)
+          echo "TF_BUCKET=$BUCKET" >> $GITHUB_ENV
+          echo "TF_PROJECT=$PROJECT" >> $GITHUB_ENV
+
       - name: Terraform Init
+        working-directory: ./terraform/infra
         run: terraform init -reconfigure -backend-config="bucket=${{ env.TF_BUCKET }}"
 
       - name: Terraform Plan
-        run: terraform plan -var-file=terraform.tfvars -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
+        working-directory: ./terraform/infra
+        run: |
+          terraform plan \
+            -var="project_id=${{ env.TF_PROJECT }}" \
+            -var-file=terraform.tfvars \
+            -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
 
       - name: Terraform Apply
-        if: inputs.branch == 'dev'
-        run: terraform apply -auto-approve -var-file=terraform.tfvars -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
+        if: inputs.apply == true
+        working-directory: ./terraform/infra
+        run: |
+          terraform apply -auto-approve \
+            -var="project_id=${{ env.TF_PROJECT }}" \
+            -var-file=terraform.tfvars \
+            -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
 
       - name: Release state lock on failure
         if: failure()
-        run: gsutil rm -f gs://zoocamp-project-tf-state/terraform/state/default.tflock || true
+        run: gsutil rm -f gs://${{ env.TF_BUCKET }}/terraform/state/default.tflock || true
