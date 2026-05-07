@@ -34,24 +34,20 @@ jobs:
         with:
           terraform_wrapper: false
 
-      - name: Get TF State Bucket
-        working-directory: ./terraform/state
+      - name: Debug Bucket
         run: |
-          terraform init
-          BUCKET=$(terraform output -raw bucket_name)
-          PROJECT=$(terraform output -raw project_id)
-          echo "TF_BUCKET=$BUCKET" >> $GITHUB_ENV
-          echo "TF_PROJECT=$PROJECT" >> $GITHUB_ENV
+          echo "Bucket length: ${{ secrets.GCP_TF_BUCKET && 'set' || 'EMPTY' }}"
+          echo "Project: ${{ secrets.GCP_PROJECT_ID }}"
 
       - name: Terraform Init
         working-directory: ./terraform/infra
-        run: terraform init -reconfigure -backend-config="bucket=${{ env.TF_BUCKET }}"
+        run: terraform init -reconfigure -backend-config="bucket=${{ secrets.GCP_TF_BUCKET }}"
 
       - name: Terraform Plan
         working-directory: ./terraform/infra
         run: |
           terraform plan \
-            -var="project_id=${{ env.TF_PROJECT }}" \
+            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
             -var-file=terraform.tfvars \
             -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
 
@@ -60,10 +56,10 @@ jobs:
         working-directory: ./terraform/infra
         run: |
           terraform apply -auto-approve \
-            -var="project_id=${{ env.TF_PROJECT }}" \
+            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
             -var-file=terraform.tfvars \
             -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
 
       - name: Release state lock on failure
         if: failure()
-        run: gsutil rm -f gs://${{ env.TF_BUCKET }}/terraform/state/default.tflock || true
+        run: gsutil rm -f gs://${{ secrets.GCP_TF_BUCKET }}/terraform/state/default.tflock || true
