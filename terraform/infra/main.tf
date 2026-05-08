@@ -51,7 +51,7 @@ resource "google_project_iam_member" "vm_bigquery_user" {
 
 # --- DATA LAKE (STORAGE) ---
 resource "google_storage_bucket" "data_lake" {
-  name = var.project_id
+  name = "dl-${var.project_id}"
   location                    = var.location
   uniform_bucket_level_access = true
   force_destroy               = true
@@ -111,7 +111,7 @@ resource "google_compute_instance" "airflow_vm" {
 
   metadata_startup_script = templatefile("${path.module}/startup_script.sh", {
     project_id  = var.project_id
-    bucket_name = var.data_lake_bucket_name
+    bucket_name = "dl-${var.project_id}"
     dataset     = var.bigquery_dataset
   })
 
