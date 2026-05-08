@@ -72,14 +72,14 @@ resource "google_bigquery_table" "exchange_rates" {
   dataset_id = google_bigquery_dataset.dataset.dataset_id
   table_id   = "exchange_rates"
   project    = var.project_id
-  
+
   schema = jsonencode([
-    { name = "date",            type = "DATE",   mode = "REQUIRED" },
-    { name = "base_currency",   type = "STRING", mode = "REQUIRED" },
+    { name = "date", type = "DATE", mode = "REQUIRED" },
+    { name = "base_currency", type = "STRING", mode = "REQUIRED" },
     { name = "target_currency", type = "STRING", mode = "REQUIRED" },
-    { name = "rate",            type = "FLOAT",  mode = "REQUIRED" }
+    { name = "rate", type = "FLOAT", mode = "REQUIRED" }
   ])
-  
+
   deletion_protection = false
 }
 

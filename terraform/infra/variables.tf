@@ -1,35 +1,29 @@
 variable "project_id" {
-  type    = string
+  type = string
 }
 
 variable "region" {
-  type    = string
-  default = "europe-west1"
+  type = string
 }
 
 variable "location" {
-  type    = string
-  default = "EU"
+  type = string
 }
 
 variable "data_lake_bucket_name" {
   type = string
-  default = "frankfurter-dl"
 }
 
 variable "bigquery_dataset" {
   type = string
-  default = "frankfurter_dev"
 }
 
 variable "zone" {
-  type    = string
-  default = "europe-west1-b"
+  type = string
 }
 
 variable "vm_name" {
-  type    = string
-  default = "airflow-vm"
+  type = string
 }
 
 variable "vm_machine_type" {
@@ -53,5 +47,5 @@ variable "ssh_user" {
 }
 
 variable "ssh_public_key" {
-  type    = string
+  type = string
 }
