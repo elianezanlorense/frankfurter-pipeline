@@ -1,4 +1,3 @@
-data_lake_bucket_name = "frankfurter-dl"
 bigquery_dataset      = "frankfurter_dev"
 region                = "europe-west1"
 location              = "EU"
