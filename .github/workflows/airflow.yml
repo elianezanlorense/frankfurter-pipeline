@@ -71,5 +71,9 @@ jobs:
             airflow@${{ steps.vm_ip.outputs.ip }} \
             "source /opt/airflow/venv/bin/activate && \
              export AIRFLOW_HOME=/opt/airflow && \
-             sleep 120 && \
+             for i in \$(seq 1 20); do \
+               airflow dags list 2>/dev/null | grep frankfurter_exchange_rates && break; \
+               echo \"Aguardando DAG ser registrado... tentativa \$i/20\"; \
+               sleep 30; \
+             done && \
              airflow dags trigger frankfurter_exchange_rates"

@@ -1,0 +1,5 @@
+bigquery_dataset      = "frankfurter_dev"
+region                = "europe-west1"
+location              = "EU"
+zone                  = "europe-west1-b"
+vm_name               = "airflow-vm"

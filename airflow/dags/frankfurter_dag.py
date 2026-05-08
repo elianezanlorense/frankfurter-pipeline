@@ -4,12 +4,13 @@ from datetime import datetime, timedelta
 import requests
 import json
 from google.cloud import storage, bigquery
-
+import os
 # Configurações Unificadas
-PROJECT_ID = "zoocamp-project"
-DATA_LAKE_BUCKET_NAME = "frankfurter-dl"
-BIGQUERY_DATASET = "frankfurter_dev"
-TABLE_ID = f"{PROJECT_ID}.{BIGQUERY_DATASET}.exchange_rates"
+PROJECT_ID  = os.environ.get("GCP_PROJECT_ID")
+DATASET     = os.environ.get("AIRFLOW_DATASET", "frankfurter_dev")
+TABLE       = os.environ.get("AIRFLOW_TABLE", "exchange_rates")
+BUCKET_NAME = os.environ.get("AIRFLOW_BUCKET", "frankfurter-dl")
+TABLE_ID = f"{PROJECT_ID}.{DATASET}.{TABLE}"
 
 default_args = {
     'owner': 'airflow',
