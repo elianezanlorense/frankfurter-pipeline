@@ -68,19 +68,55 @@ Key questions:
 
 ##  Setup & Reproducibility
 
+
+sudo apt-get update
+sudo apt-get install -y ca-certificates gnupg curl
+
+curl https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+  | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+
+echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
+  | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
+
+sudo apt-get update
+sudo apt-get install -y google-cloud-cli
+
+gcloud version
 ### GCP Setup
 
 ```bash
 gcloud services enable cloudresourcemanager.googleapis.com --project=zoocamp-project
 
 gcloud auth application-default login
-gcloud auth application-default set-quota-project zoocamp-project
-```
+PROJECT_ID="zoocamp-project-$(shuf -i 100000-999999 -n 1)"
+echo "$PROJECT_ID"
+# 1. Autenticação do gcloud
+gcloud auth login
 
-Get project number:
+# 2. Autenticação para Terraform e bibliotecas
+gcloud auth application-default login
 
-```bash
-gcloud projects describe zoocamp-project --format="value(projectNumber)"
+# 3. Gerar um ID aleatório
+PROJECT_ID="zoocamp-project-$(shuf -i 100000-999999 -n 1)"
+echo "$PROJECT_ID"
+
+# 4. Criar e selecionar o projeto
+gcloud projects create "$PROJECT_ID" --name="$PROJECT_ID"
+gcloud config set project "$PROJECT_ID"
+
+# 5. Configurar o projeto de quota das credenciais
+gcloud auth application-default set-quota-project "$PROJECT_ID"
+
+# 6. Ativar a API necessária
+gcloud services enable cloudresourcemanager.googleapis.com \
+  --project="$PROJECT_ID"
+
+# 7. Obter o número do projeto
+PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" \
+  --format="value(projectNumber)")"
+
+echo "Project ID: $PROJECT_ID"
+echo "Project number: $PROJECT_NUMBER"
 ```
 
 ---
