@@ -70,11 +70,10 @@ Key questions:
 
 ## Git 
 git branch
-git switch main
 git pull origin main
 git switch -c test
 
-
+# Alias
 echo "alias st='git status'" >> ~/.bashrc
 echo "alias sw='git switch'" >> ~/.bashrc
 echo "alias br='git branch'" >> ~/.bashrc
@@ -86,18 +85,17 @@ echo "alias ga='git add'" >> ~/.bashrc
 echo "alias lg='git log --oneline --graph --decorate --all'" >> ~/.bashrc
 
 source ~/.bashrc
-source ~/.bashrc
-to verify all alias 
-git config --global --get-regexp '^alias\.'
+# to verify all alias 
+alias | grep git
 
 ## Virtual envirioment
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.bashrc
-uv --version
+uv init
 uv sync
 source .venv/bin/activate
 
-# GCP 
+# Install GCP 
 sudo apt-get update
 sudo apt-get install -y ca-certificates gnupg curl
 
@@ -111,6 +109,7 @@ sudo apt-get update
 sudo apt-get install -y google-cloud-cli
 
 gcloud version
+
 ### GCP Setup
 
 ```bash
@@ -121,9 +120,6 @@ gcloud auth list
 PROJECT_ID="zoocamp-project-$(shuf -i 100000-999999 -n 1)"
 gcloud projects create "$PROJECT_ID" --name="$PROJECT_ID"
 
-
-
-# 5. Configurar o projeto de quota das credenciais
 gcloud config set project "$PROJECT_ID"
 
 gcloud auth application-default set-quota-project "$PROJECT_ID"
@@ -134,19 +130,25 @@ gcloud services enable cloudresourcemanager.googleapis.com \
 PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" \
   --format="value(projectNumber)")"
 
-echo "Project ID: $PROJECT_ID"
-echo "Project number: $PROJECT_NUMBER"
 
-# 6. Ativar a API necessária
-gcloud services enable cloudresourcemanager.googleapis.com \
-  --project="$PROJECT_ID"
 
-# 7. Obter o número do projeto
-PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" \
-  --format="value(projectNumber)")"
+gcloud auth application-default login
+
+# 4. Associar as credenciais ao projeto de quota
+gcloud auth application-default set-quota-project "$(gcloud config get-value project)"
 
 echo "Project ID: $PROJECT_ID"
 echo "Project number: $PROJECT_NUMBER"
+
+gcloud billing accounts list --filter="open=true"
+export BILLING_ACCOUNT_ID="$(
+  gcloud billing accounts list \
+    --filter='open=true' \
+    --format='value(ACCOUNT_ID)' \
+    --limit=1
+)"
+gcloud billing projects link "$TF_VAR_project_id" \
+  --billing-account="$BILLING_ACCOUNT_ID"
 ```
 
 ---
@@ -156,9 +158,10 @@ echo "Project number: $PROJECT_NUMBER"
 ```bash
 ssh-keygen -t rsa -b 4096 -C "airflow-vm" -f ~/.ssh/airflow_vm -N ""
 cat ~/.ssh/airflow_vm.pub
-```
-verify that created 
+#verify that created 
 ls -l ~/.ssh/airflow_vm*
+```
+
 ---
 
 ###  GitHub Secrets
@@ -170,10 +173,11 @@ gh auth login
 gh api user --jq '.login'
 git config user.name
 git config user.email
-```
 unset GITHUB_TOKEN
 gh auth login --hostname github.com --git-protocol https --scopes repo,workflow
 gh auth status
+```
+
 
 
 
@@ -204,11 +208,12 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashi
 sudo apt update
 sudo apt install -y terraform
 cd terraform/state
-
+export TF_VAR_project_id="$(gcloud config get-value project)"
+export TF_VAR_github_repository="$(gh repo view --json nameWithOwner --jq '.nameWithOwner')"
 terraform init
 terraform fmt
-terraform plan -var="github_repository=elianezanlorense/frankfurter-pipeline"
-terraform apply -var="github_repository=elianezanlorense/frankfurter-pipeline"
+terraform plan 
+terraform apply 
 ```
 
 ---
