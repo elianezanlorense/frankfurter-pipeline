@@ -61,7 +61,7 @@ resource "google_project_iam_member" "terraform_iam_admin" {
 }
 
 resource "google_iam_workload_identity_pool" "github" {
-  workload_identity_pool_id = "${var.project_id}-github-pool-2"
+  workload_identity_pool_id = "${var.project_id}-ghpool"
   display_name              = "GitHub Actions Pool"
   description               = "OIDC pool for GitHub Actions"
 }

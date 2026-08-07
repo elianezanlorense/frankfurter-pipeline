@@ -1,6 +1,6 @@
 variable "project_id" {
-  type    = string
-  default = "zoocamp-project"
+  description = "Google Cloud project ID where resources will be created"
+  type        = string
 }
 
 variable "region" {

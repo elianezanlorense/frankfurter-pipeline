@@ -69,6 +69,14 @@ Key questions:
 ##  Setup & Reproducibility
 
 
+## Virtual envirioment
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source ~/.bashrc
+uv --version 
+uv initi
+source .venv/bin/activate
+
+# GCP 
 sudo apt-get update
 sudo apt-get install -y ca-certificates gnupg curl
 
@@ -85,27 +93,28 @@ gcloud version
 ### GCP Setup
 
 ```bash
-gcloud services enable cloudresourcemanager.googleapis.com --project=zoocamp-project
 
-gcloud auth application-default login
-PROJECT_ID="zoocamp-project-$(shuf -i 100000-999999 -n 1)"
-echo "$PROJECT_ID"
-# 1. Autenticação do gcloud
 gcloud auth login
+gcloud auth list
 
-# 2. Autenticação para Terraform e bibliotecas
-gcloud auth application-default login
-
-# 3. Gerar um ID aleatório
 PROJECT_ID="zoocamp-project-$(shuf -i 100000-999999 -n 1)"
-echo "$PROJECT_ID"
-
-# 4. Criar e selecionar o projeto
 gcloud projects create "$PROJECT_ID" --name="$PROJECT_ID"
-gcloud config set project "$PROJECT_ID"
+
+
 
 # 5. Configurar o projeto de quota das credenciais
+gcloud config set project "$PROJECT_ID"
+
 gcloud auth application-default set-quota-project "$PROJECT_ID"
+
+gcloud services enable cloudresourcemanager.googleapis.com \
+  --project="$PROJECT_ID"
+
+PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" \
+  --format="value(projectNumber)")"
+
+echo "Project ID: $PROJECT_ID"
+echo "Project number: $PROJECT_NUMBER"
 
 # 6. Ativar a API necessária
 gcloud services enable cloudresourcemanager.googleapis.com \
@@ -127,7 +136,8 @@ echo "Project number: $PROJECT_NUMBER"
 ssh-keygen -t rsa -b 4096 -C "airflow-vm" -f ~/.ssh/airflow_vm -N ""
 cat ~/.ssh/airflow_vm.pub
 ```
-
+verify that created 
+ls -l ~/.ssh/airflow_vm*
 ---
 
 ###  GitHub Secrets
@@ -136,12 +146,19 @@ Login:
 
 ```bash
 gh auth login
+gh api user --jq '.login'
+git config user.name
+git config user.email
 ```
+unset GITHUB_TOKEN
+gh auth login --hostname github.com --git-protocol https --scopes repo,workflow
+gh auth status
+
+
 
 Set secrets:
 
 ```bash
-gh secret set GCP_CREDENTIALS < key.json
 gh secret set SSH_PRIVATE_KEY < ~/.ssh/airflow_vm
 gh secret set SSH_PUBLIC_KEY < ~/.ssh/airflow_vm.pub
 ```
@@ -157,6 +174,14 @@ gh secret list
 ##  Terraform Bootstrap
 
 ```bash
+wget -O - https://apt.releases.hashicorp.com/gpg \
+  | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release || lsb_release -cs) main" \
+  | sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+sudo apt update
+sudo apt install -y terraform
 cd terraform/state
 
 terraform init
