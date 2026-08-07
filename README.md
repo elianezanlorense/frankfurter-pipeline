@@ -222,8 +222,9 @@ terraform apply
 
 ```bash
 cd ../infra
-
-terraform init -reconfigure
+export TF_VAR_ssh_public_key="$(cat ~/.ssh/airflow_vm.pub)"
+terraform init -reconfigure \
+  -backend-config="bucket=$TF_STATE_BUCKET"
 terraform fmt
 terraform plan
 terraform apply
