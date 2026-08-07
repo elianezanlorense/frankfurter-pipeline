@@ -68,12 +68,33 @@ Key questions:
 
 ##  Setup & Reproducibility
 
+## Git 
+git branch
+git switch main
+git pull origin main
+git switch -c test
+
+
+echo "alias st='git status'" >> ~/.bashrc
+echo "alias sw='git switch'" >> ~/.bashrc
+echo "alias br='git branch'" >> ~/.bashrc
+echo "alias co='git checkout'" >> ~/.bashrc
+echo "alias cm='git commit'" >> ~/.bashrc
+echo "alias ps='git push'" >> ~/.bashrc
+echo "alias pl='git pull'" >> ~/.bashrc
+echo "alias ga='git add'" >> ~/.bashrc
+echo "alias lg='git log --oneline --graph --decorate --all'" >> ~/.bashrc
+
+source ~/.bashrc
+source ~/.bashrc
+to verify all alias 
+git config --global --get-regexp '^alias\.'
 
 ## Virtual envirioment
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.bashrc
-uv --version 
-uv initi
+uv --version
+uv sync
 source .venv/bin/activate
 
 # GCP 
