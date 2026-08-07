@@ -207,6 +207,13 @@ terraform fmt
 terraform plan 
 terraform apply 
 ```
+gh secret set GCP_WIF_PROVIDER \
+  --body "$(terraform -chdir=terraform/state output -raw workload_identity_provider)"
+
+gh secret set GCP_SA_EMAIL \
+  --body "$(terraform -chdir=terraform/state output -raw terraform_runner_sa_email)"
+
+gh secret list --app actions
 
 ---
 
