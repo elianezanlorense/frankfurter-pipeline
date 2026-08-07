@@ -117,18 +117,29 @@ gcloud version
 
 gcloud auth login
 gcloud auth list
+
 PROJECT_ID="zoocamp-project-$(shuf -i 100000-999999 -n 1)"
+
 gcloud projects create "$PROJECT_ID" --name="$PROJECT_ID"
 gcloud config set project "$PROJECT_ID"
-OAUTHLIB_RELAX_TOKEN_SCOPE=1 gcloud auth application-default login
-gcloud auth application-default set-quota-project "$PROJECT_ID"
-gcloud services enable cloudresourcemanager.googleapis.com --project="$PROJECT_ID"
-PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)")"
+
 BILLING_ACCOUNT_ID="$(gcloud billing accounts list --filter="open=true" --format="value(ACCOUNT_ID)" --limit=1)"
+
 gcloud billing projects link "$PROJECT_ID" --billing-account="$BILLING_ACCOUNT_ID"
 gcloud beta billing projects describe "$PROJECT_ID"
+
+gcloud services enable cloudresourcemanager.googleapis.com compute.googleapis.com --project="$PROJECT_ID"
+
+gcloud services list --enabled --project="$PROJECT_ID" --filter="config.name:compute.googleapis.com"
+
+OAUTHLIB_RELAX_TOKEN_SCOPE=1 gcloud auth application-default login
+gcloud auth application-default set-quota-project "$PROJECT_ID"
+
+PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)")"
+
 echo "Project ID: $PROJECT_ID"
 echo "Project number: $PROJECT_NUMBER"
+echo "Billing account: $BILLING_ACCOUNT_ID"
 ```
 
 ---
@@ -211,6 +222,13 @@ terraform plan
 terraform apply
 ```
 
+gh secret set GCP_WIF_PROVIDER \
+  --body "$(terraform -chdir=terraform/state output -raw workload_identity_provider)"
+
+gh secret set GCP_SA_EMAIL \
+  --body "$(terraform -chdir=terraform/state output -raw terraform_runner_sa_email)"
+
+gh secret list --app actions
 ---
 
 ##  Get VM IP
