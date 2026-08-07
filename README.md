@@ -74,15 +74,19 @@ git switch main
 git pull origin main
 git switch -c test
 
-git config --global alias.st status
-git config --global alias.sw switch
-git config --global alias.br branch
-git config --global alias.co checkout
-git config --global alias.cm commit
-git config --global alias.ps push
-git config --global alias.pl pull
-git config --global alias.lg "log --oneline --graph --decorate --all"
 
+echo "alias st='git status'" >> ~/.bashrc
+echo "alias sw='git switch'" >> ~/.bashrc
+echo "alias br='git branch'" >> ~/.bashrc
+echo "alias co='git checkout'" >> ~/.bashrc
+echo "alias cm='git commit'" >> ~/.bashrc
+echo "alias ps='git push'" >> ~/.bashrc
+echo "alias pl='git pull'" >> ~/.bashrc
+echo "alias ga='git add'" >> ~/.bashrc
+echo "alias lg='git log --oneline --graph --decorate --all'" >> ~/.bashrc
+
+source ~/.bashrc
+source ~/.bashrc
 to verify all alias 
 git config --global --get-regexp '^alias\.'
 
