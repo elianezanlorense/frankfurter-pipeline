@@ -68,12 +68,29 @@ Key questions:
 
 ##  Setup & Reproducibility
 
+## Git 
+git branch
+git switch main
+git pull origin main
+git switch -c test
+
+git config --global alias.st status
+git config --global alias.sw switch
+git config --global alias.br branch
+git config --global alias.co checkout
+git config --global alias.cm commit
+git config --global alias.ps push
+git config --global alias.pl pull
+git config --global alias.lg "log --oneline --graph --decorate --all"
+
+to verify all alias 
+git config --global --get-regexp '^alias\.'
 
 ## Virtual envirioment
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.bashrc
-uv --version 
-uv initi
+uv --version
+uv sync
 source .venv/bin/activate
 
 # GCP 
