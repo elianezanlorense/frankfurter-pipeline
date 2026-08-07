@@ -92,6 +92,7 @@ alias | grep git
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.bashrc
 uv init
+export UV_LINK_MODE=copy
 uv sync
 source .venv/bin/activate
 
@@ -116,39 +117,18 @@ gcloud version
 
 gcloud auth login
 gcloud auth list
-
 PROJECT_ID="zoocamp-project-$(shuf -i 100000-999999 -n 1)"
 gcloud projects create "$PROJECT_ID" --name="$PROJECT_ID"
-
 gcloud config set project "$PROJECT_ID"
-
+OAUTHLIB_RELAX_TOKEN_SCOPE=1 gcloud auth application-default login
 gcloud auth application-default set-quota-project "$PROJECT_ID"
-
-gcloud services enable cloudresourcemanager.googleapis.com \
-  --project="$PROJECT_ID"
-
-PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" \
-  --format="value(projectNumber)")"
-
-
-
-gcloud auth application-default login
-
-# 4. Associar as credenciais ao projeto de quota
-gcloud auth application-default set-quota-project "$(gcloud config get-value project)"
-
+gcloud services enable cloudresourcemanager.googleapis.com --project="$PROJECT_ID"
+PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)")"
+BILLING_ACCOUNT_ID="$(gcloud billing accounts list --filter="open=true" --format="value(ACCOUNT_ID)" --limit=1)"
+gcloud billing projects link "$PROJECT_ID" --billing-account="$BILLING_ACCOUNT_ID"
+gcloud beta billing projects describe "$PROJECT_ID"
 echo "Project ID: $PROJECT_ID"
 echo "Project number: $PROJECT_NUMBER"
-
-gcloud billing accounts list --filter="open=true"
-export BILLING_ACCOUNT_ID="$(
-  gcloud billing accounts list \
-    --filter='open=true' \
-    --format='value(ACCOUNT_ID)' \
-    --limit=1
-)"
-gcloud billing projects link "$TF_VAR_project_id" \
-  --billing-account="$BILLING_ACCOUNT_ID"
 ```
 
 ---
@@ -208,6 +188,7 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashi
 sudo apt update
 sudo apt install -y terraform
 cd terraform/state
+
 export TF_VAR_project_id="$(gcloud config get-value project)"
 export TF_VAR_github_repository="$(gh repo view --json nameWithOwner --jq '.nameWithOwner')"
 terraform init
