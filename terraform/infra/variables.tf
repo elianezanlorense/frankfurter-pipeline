@@ -14,12 +14,12 @@ variable "location" {
 }
 
 variable "data_lake_bucket_name" {
-  type = string
+  type    = string
   default = "frankfurter-dl"
 }
 
 variable "bigquery_dataset" {
-  type = string
+  type    = string
   default = "frankfurter_dev"
 }
 
@@ -54,5 +54,5 @@ variable "ssh_user" {
 }
 
 variable "ssh_public_key" {
-  type    = string
+  type = string
 }
