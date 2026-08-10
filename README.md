@@ -114,46 +114,26 @@ gcloud version
 ### GCP Setup
 
 ```bash
+set -euo pipefail
 
+# Autenticar no GCP
 gcloud auth login
-gcloud auth application-default login
 
+# Criar projeto com ID único
 PROJECT_ID="zoocamp-project-$(shuf -i 100000-999999 -n 1)"
-<<<<<<< HEAD
-=======
 
 gcloud projects create "$PROJECT_ID" \
   --name="$PROJECT_ID"
->>>>>>> a7d3e20 (update gcp auth)
 
-gcloud projects create "$PROJECT_ID" --name="$PROJECT_ID"
 gcloud config set project "$PROJECT_ID"
 
-<<<<<<< HEAD
-BILLING_ACCOUNT_ID="$(gcloud billing accounts list --filter="open=true" --format="value(ACCOUNT_ID)" --limit=1)"
-
-gcloud billing projects link "$PROJECT_ID" --billing-account="$BILLING_ACCOUNT_ID"
-gcloud beta billing projects describe "$PROJECT_ID"
-
-gcloud services enable cloudresourcemanager.googleapis.com compute.googleapis.com --project="$PROJECT_ID"
-
-gcloud services list --enabled --project="$PROJECT_ID" --filter="config.name:compute.googleapis.com"
-
-OAUTHLIB_RELAX_TOKEN_SCOPE=1 gcloud auth application-default login
-gcloud auth application-default set-quota-project "$PROJECT_ID"
-
-PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)")"
-=======
-PROJECT_NUMBER="$(
-  gcloud projects describe "$PROJECT_ID" \
-    --format="value(projectNumber)"
-)"
-
+# Localizar conta de faturamento automaticamente
 BILLING_ACCOUNT_ID="$(
   gcloud billing accounts list \
     --filter="open=true" \
     --format="value(name)" \
-    --limit=1
+    --limit=1 |
+  sed 's#^billingAccounts/##'
 )"
 
 if [[ -z "$BILLING_ACCOUNT_ID" ]]; then
@@ -161,33 +141,25 @@ if [[ -z "$BILLING_ACCOUNT_ID" ]]; then
   exit 1
 fi
 
+# Vincular o faturamento
 gcloud billing projects link "$PROJECT_ID" \
   --billing-account="$BILLING_ACCOUNT_ID"
 
+gcloud billing projects describe "$PROJECT_ID"
+
+# Habilitar APIs
 gcloud services enable \
   cloudresourcemanager.googleapis.com \
   serviceusage.googleapis.com \
   iam.googleapis.com \
   iamcredentials.googleapis.com \
-  storage.googleapis.com \
   compute.googleapis.com \
+  storage.googleapis.com \
   --project="$PROJECT_ID"
 
-gcloud auth application-default set-quota-project "$PROJECT_ID"
-
-export TF_VAR_project_id="$PROJECT_ID"
->>>>>>> a7d3e20 (update gcp auth)
-
-echo "Project ID: $PROJECT_ID"
-echo "Project number: $PROJECT_NUMBER"
-echo "Billing account: $BILLING_ACCOUNT_ID"
-<<<<<<< HEAD
-=======
-
-PROJECT_ID="$(gcloud config get-value project)"
+# Criar Service Account para o GitHub Actions
 SA_NAME="github-actions"
 SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
-KEY_FILE="$(mktemp)"
 
 if ! gcloud iam service-accounts describe "$SA_EMAIL" \
   --project="$PROJECT_ID" >/dev/null 2>&1
@@ -196,22 +168,53 @@ then
     --display-name="GitHub Actions" \
     --project="$PROJECT_ID"
 fi
-gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-  --member="serviceAccount:${SA_EMAIL}" \
-  --role="roles/storage.bucketViewer"
-gcloud iam service-accounts keys create "$KEY_FILE" \
-  --iam-account="$SA_EMAIL" \
-  --project="$PROJECT_ID"
 
-gh secret set GCP_CREDENTIALS < "$KEY_FILE"
-gh variable set GCP_PROJECT_ID --body="$PROJECT_ID"
+# Conceder permissões necessárias para o teste
+ROLES=(
+  "roles/browser"
+  "roles/storage.bucketViewer"
+)
 
-shred -u "$KEY_FILE"
-unset KEY_FILE
+for ROLE in "${ROLES[@]}"; do
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:${SA_EMAIL}" \
+    --role="$ROLE"
+done
 
-gh secret list
-gh variable list
->>>>>>> a7d3e20 (update gcp auth)
+# Configurar credenciais locais para Terraform e aplicações
+OAUTHLIB_RELAX_TOKEN_SCOPE=1 \
+  gcloud auth application-default login
+
+gcloud auth application-default set-quota-project "$PROJECT_ID"
+
+# Obter número do projeto
+PROJECT_NUMBER="$(
+  gcloud projects describe "$PROJECT_ID" \
+    --format="value(projectNumber)"
+)"
+
+# Disponibilizar o projeto para o Terraform
+export TF_VAR_project_id="$PROJECT_ID"
+
+# Verificar APIs habilitadas
+gcloud services list \
+  --enabled \
+  --project="$PROJECT_ID" \
+  --format="table(config.name)"
+
+# Verificar permissões da Service Account
+gcloud projects get-iam-policy "$PROJECT_ID" \
+  --flatten="bindings[].members" \
+  --filter="bindings.members:serviceAccount:${SA_EMAIL}" \
+  --format="table(bindings.role)"
+
+# Exibir informações finais
+echo "Project ID: $PROJECT_ID"
+echo "Project number: $PROJECT_NUMBER"
+echo "Billing account: $BILLING_ACCOUNT_ID"
+echo "Service Account: $SA_EMAIL"
+echo "Terraform project: $TF_VAR_project_id"
+
 ```
 ### . SSH Key for Airflow VM
 
@@ -236,6 +239,49 @@ git config user.email
 unset GITHUB_TOKEN
 gh auth login --hostname github.com --git-protocol https --scopes repo,workflow
 gh auth status
+# Evitar que o token automático do Codespace interfira
+unset GITHUB_TOKEN
+
+# Autenticar no GitHub
+gh auth login \
+  --hostname github.com \
+  --git-protocol https \
+  --scopes repo,workflow
+
+# Verificar autenticação
+gh auth status
+gh api user --jq '.login'
+
+# Verificar configuração do Git
+git config user.name
+git config user.email
+
+# Obter informações dinamicamente
+PROJECT_ID="$(gcloud config get-value project)"
+SA_NAME="github-actions"
+SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+KEY_FILE="$(mktemp)"
+
+# Criar temporariamente a chave JSON
+gcloud iam service-accounts keys create "$KEY_FILE" \
+  --iam-account="$SA_EMAIL" \
+  --project="$PROJECT_ID"
+
+# Enviar configurações do GCP ao GitHub
+gh secret set GCP_CREDENTIALS < "$KEY_FILE"
+gh variable set GCP_PROJECT_ID --body="$PROJECT_ID"
+
+# Enviar chaves SSH ao GitHub
+gh secret set SSH_PRIVATE_KEY < ~/.ssh/airflow_vm
+gh secret set SSH_PUBLIC_KEY < ~/.ssh/airflow_vm.pub
+
+# Remover a credencial temporária
+shred -u "$KEY_FILE"
+unset KEY_FILE
+
+# Conferir
+gh secret list
+gh variable list
 ```
 
 
