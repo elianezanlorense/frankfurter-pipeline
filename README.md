@@ -116,13 +116,20 @@ gcloud version
 ```bash
 
 gcloud auth login
-gcloud auth list
+gcloud auth application-default login
 
 PROJECT_ID="zoocamp-project-$(shuf -i 100000-999999 -n 1)"
+<<<<<<< HEAD
+=======
+
+gcloud projects create "$PROJECT_ID" \
+  --name="$PROJECT_ID"
+>>>>>>> a7d3e20 (update gcp auth)
 
 gcloud projects create "$PROJECT_ID" --name="$PROJECT_ID"
 gcloud config set project "$PROJECT_ID"
 
+<<<<<<< HEAD
 BILLING_ACCOUNT_ID="$(gcloud billing accounts list --filter="open=true" --format="value(ACCOUNT_ID)" --limit=1)"
 
 gcloud billing projects link "$PROJECT_ID" --billing-account="$BILLING_ACCOUNT_ID"
@@ -136,14 +143,76 @@ OAUTHLIB_RELAX_TOKEN_SCOPE=1 gcloud auth application-default login
 gcloud auth application-default set-quota-project "$PROJECT_ID"
 
 PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)")"
+=======
+PROJECT_NUMBER="$(
+  gcloud projects describe "$PROJECT_ID" \
+    --format="value(projectNumber)"
+)"
+
+BILLING_ACCOUNT_ID="$(
+  gcloud billing accounts list \
+    --filter="open=true" \
+    --format="value(name)" \
+    --limit=1
+)"
+
+if [[ -z "$BILLING_ACCOUNT_ID" ]]; then
+  echo "Nenhuma conta de faturamento aberta encontrada." >&2
+  exit 1
+fi
+
+gcloud billing projects link "$PROJECT_ID" \
+  --billing-account="$BILLING_ACCOUNT_ID"
+
+gcloud services enable \
+  cloudresourcemanager.googleapis.com \
+  serviceusage.googleapis.com \
+  iam.googleapis.com \
+  iamcredentials.googleapis.com \
+  storage.googleapis.com \
+  compute.googleapis.com \
+  --project="$PROJECT_ID"
+
+gcloud auth application-default set-quota-project "$PROJECT_ID"
+
+export TF_VAR_project_id="$PROJECT_ID"
+>>>>>>> a7d3e20 (update gcp auth)
 
 echo "Project ID: $PROJECT_ID"
 echo "Project number: $PROJECT_NUMBER"
 echo "Billing account: $BILLING_ACCOUNT_ID"
+<<<<<<< HEAD
+=======
+
+PROJECT_ID="$(gcloud config get-value project)"
+SA_NAME="github-actions"
+SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+KEY_FILE="$(mktemp)"
+
+if ! gcloud iam service-accounts describe "$SA_EMAIL" \
+  --project="$PROJECT_ID" >/dev/null 2>&1
+then
+  gcloud iam service-accounts create "$SA_NAME" \
+    --display-name="GitHub Actions" \
+    --project="$PROJECT_ID"
+fi
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+  --member="serviceAccount:${SA_EMAIL}" \
+  --role="roles/storage.bucketViewer"
+gcloud iam service-accounts keys create "$KEY_FILE" \
+  --iam-account="$SA_EMAIL" \
+  --project="$PROJECT_ID"
+
+gh secret set GCP_CREDENTIALS < "$KEY_FILE"
+gh variable set GCP_PROJECT_ID --body="$PROJECT_ID"
+
+shred -u "$KEY_FILE"
+unset KEY_FILE
+
+gh secret list
+gh variable list
+>>>>>>> a7d3e20 (update gcp auth)
 ```
-
----
-
 ### . SSH Key for Airflow VM
 
 ```bash
