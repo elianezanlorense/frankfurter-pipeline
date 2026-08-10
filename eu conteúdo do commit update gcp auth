@@ -1,0 +1,112 @@
+[1mdiff --cc README.md[m
+[1mindex c6a341c,74a47e6..0000000[m
+[1m--- a/README.md[m
+[1m+++ b/README.md[m
+[36m@@@ -116,34 -115,80 +116,103 @@@[m [mgcloud versio[m
+  ```bash[m
+  [m
+  gcloud auth login[m
+[31m- gcloud auth list[m
+[32m+ gcloud auth application-default login[m
+  [m
+  PROJECT_ID="zoocamp-project-$(shuf -i 100000-999999 -n 1)"[m
+[32m++<<<<<<< HEAD[m
+[32m++=======[m
+[32m+ [m
+[32m+ gcloud projects create "$PROJECT_ID" \[m
+[32m+   --name="$PROJECT_ID"[m
+[32m++>>>>>>> a7d3e20 (update gcp auth)[m
+  [m
+[32m +gcloud projects create "$PROJECT_ID" --name="$PROJECT_ID"[m
+  gcloud config set project "$PROJECT_ID"[m
+  [m
+[32m++<<<<<<< HEAD[m
+[32m +BILLING_ACCOUNT_ID="$(gcloud billing accounts list --filter="open=true" --format="value(ACCOUNT_ID)" --limit=1)"[m
+[32m +[m
+[32m +gcloud billing projects link "$PROJECT_ID" --billing-account="$BILLING_ACCOUNT_ID"[m
+[32m +gcloud beta billing projects describe "$PROJECT_ID"[m
+[32m +[m
+[32m +gcloud services enable cloudresourcemanager.googleapis.com compute.googleapis.com --project="$PROJECT_ID"[m
+[32m +[m
+[32m +gcloud services list --enabled --project="$PROJECT_ID" --filter="config.name:compute.googleapis.com"[m
+[32m +[m
+[32m +OAUTHLIB_RELAX_TOKEN_SCOPE=1 gcloud auth application-default login[m
+[32m +gcloud auth application-default set-quota-project "$PROJECT_ID"[m
+[32m +[m
+[32m +PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)")"[m
+[32m++=======[m
+[32m+ PROJECT_NUMBER="$([m
+[32m+   gcloud projects describe "$PROJECT_ID" \[m
+[32m+     --format="value(projectNumber)"[m
+[32m+ )"[m
+[32m+ [m
+[32m+ BILLING_ACCOUNT_ID="$([m
+[32m+   gcloud billing accounts list \[m
+[32m+     --filter="open=true" \[m
+[32m+     --format="value(name)" \[m
+[32m+     --limit=1[m
+[32m+ )"[m
+[32m+ [m
+[32m+ if [[ -z "$BILLING_ACCOUNT_ID" ]]; then[m
+[32m+   echo "Nenhuma conta de faturamento aberta encontrada." >&2[m
+[32m+   exit 1[m
+[32m+ fi[m
+[32m+ [m
+[32m+ gcloud billing projects link "$PROJECT_ID" \[m
+[32m+   --billing-account="$BILLING_ACCOUNT_ID"[m
+[32m+ [m
+[32m+ gcloud services enable \[m
+[32m+   cloudresourcemanager.googleapis.com \[m
+[32m+   serviceusage.googleapis.com \[m
+[32m+   iam.googleapis.com \[m
+[32m+   iamcredentials.googleapis.com \[m
+[32m+   storage.googleapis.com \[m
+[32m+   compute.googleapis.com \[m
+[32m+   --project="$PROJECT_ID"[m
+[32m+ [m
+[32m+ gcloud auth application-default set-quota-project "$PROJECT_ID"[m
+[32m+ [m
+[32m+ export TF_VAR_project_id="$PROJECT_ID"[m
+[32m++>>>>>>> a7d3e20 (update gcp auth)[m
+  [m
+  echo "Project ID: $PROJECT_ID"[m
+  echo "Project number: $PROJECT_NUMBER"[m
+  echo "Billing account: $BILLING_ACCOUNT_ID"[m
+[32m++<<<<<<< HEAD[m
+[32m++=======[m
+[32m+ [m
+[32m+ PROJECT_ID="$(gcloud config get-value project)"[m
+[32m+ SA_NAME="github-actions"[m
+[32m+ SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"[m
+[32m+ KEY_FILE="$(mktemp)"[m
+[32m+ [m
+[32m+ if ! gcloud iam service-accounts describe "$SA_EMAIL" \[m
+[32m+   --project="$PROJECT_ID" >/dev/null 2>&1[m
+[32m+ then[m
+[32m+   gcloud iam service-accounts create "$SA_NAME" \[m
+[32m+     --display-name="GitHub Actions" \[m
+[32m+     --project="$PROJECT_ID"[m
+[32m+ fi[m
+[32m+ gcloud projects add-iam-policy-binding "$PROJECT_ID" \[m
+[32m+   --member="serviceAccount:${SA_EMAIL}" \[m
+[32m+   --role="roles/storage.bucketViewer"[m
+[32m+ gcloud iam service-accounts keys create "$KEY_FILE" \[m
+[32m+   --iam-account="$SA_EMAIL" \[m
+[32m+   --project="$PROJECT_ID"[m
+[32m+ [m
+[32m+ gh secret set GCP_CREDENTIALS < "$KEY_FILE"[m
+[32m+ gh variable set GCP_PROJECT_ID --body="$PROJECT_ID"[m
+[32m+ [m
+[32m+ shred -u "$KEY_FILE"[m
+[32m+ unset KEY_FILE[m
+[32m+ [m
+[32m+ gh secret list[m
+[32m+ gh variable list[m
+[32m++>>>>>>> a7d3e20 (update gcp auth)[m
+  ```[m
+[31m- [m
+[31m- ---[m
+[31m- [m
+  ### . SSH Key for Airflow VM[m
+  [m
+  ```bash[m
