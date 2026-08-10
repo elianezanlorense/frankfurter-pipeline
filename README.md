@@ -118,105 +118,63 @@ gcloud version
 ```bash
 
 
-# Autenticar no GCP
 gcloud auth login
 
-# Criar projeto com ID único
 PROJECT_ID="zoocamp-project-$(shuf -i 100000-999999 -n 1)"
 
-gcloud projects create "$PROJECT_ID" \
-  --name="$PROJECT_ID"
+gcloud projects create "$PROJECT_ID" --name="$PROJECT_ID"
 
 gcloud config set project "$PROJECT_ID"
 
-# Localizar conta de faturamento automaticamente
-BILLING_ACCOUNT_ID="$(
-  gcloud billing accounts list \
-    --filter="open=true" \
-    --format="value(name)" \
-    --limit=1 |
-  sed 's#^billingAccounts/##'
-)"
+BILLING_ACCOUNT_ID="$(gcloud billing accounts list --filter="open=true" --format="value(name)" --limit=1 | sed 's#^billingAccounts/##')"
 
 if [[ -z "$BILLING_ACCOUNT_ID" ]]; then
   echo "Nenhuma conta de faturamento aberta encontrada." >&2
-  exit 1
+  return 1 2>/dev/null || exit 1
 fi
 
-# Vincular o faturamento
-gcloud billing projects link "$PROJECT_ID" \
-  --billing-account="$BILLING_ACCOUNT_ID"
+echo "Projeto: $PROJECT_ID"
+echo "Conta de faturamento: $BILLING_ACCOUNT_ID"
 
-gcloud billing projects describe "$PROJECT_ID"
+gcloud billing projects link "$PROJECT_ID" --billing-account="$BILLING_ACCOUNT_ID"
 
-# Habilitar APIs
-gcloud services enable \
-  cloudresourcemanager.googleapis.com \
-  serviceusage.googleapis.com \
-  iam.googleapis.com \
-  iamcredentials.googleapis.com \
-  compute.googleapis.com \
-  storage.googleapis.com \
-  --project="$PROJECT_ID"
+gcloud billing projects describe "$PROJECT_ID" --format="yaml(projectId,billingAccountName,billingEnabled)"
 
-# Criar Service Account para o GitHub Actions
+gcloud services enable cloudresourcemanager.googleapis.com serviceusage.googleapis.com iam.googleapis.com iamcredentials.googleapis.com compute.googleapis.com storage.googleapis.com --project="$PROJECT_ID"
+
 SA_NAME="github-actions"
 SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 
-if ! gcloud iam service-accounts describe "$SA_EMAIL" \
-  --project="$PROJECT_ID" >/dev/null 2>&1
-then
-  gcloud iam service-accounts create "$SA_NAME" \
-    --display-name="GitHub Actions" \
-    --project="$PROJECT_ID"
+if ! gcloud iam service-accounts describe "$SA_EMAIL" --project="$PROJECT_ID" >/dev/null 2>&1; then
+  gcloud iam service-accounts create "$SA_NAME" --display-name="GitHub Actions" --project="$PROJECT_ID"
 fi
 
-# Conceder permissões necessárias para o teste
-ROLES=(
-  "roles/browser"
-  "roles/storage.bucketViewer"
-)
+ROLES=("roles/browser" "roles/storage.bucketViewer")
 
 for ROLE in "${ROLES[@]}"; do
-  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-    --member="serviceAccount:${SA_EMAIL}" \
-    --role="$ROLE"
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:${SA_EMAIL}" --role="$ROLE"
 done
 
-# Configurar credenciais locais para Terraform e aplicações
-OAUTHLIB_RELAX_TOKEN_SCOPE=1 \
-  gcloud auth application-default login
+OAUTHLIB_RELAX_TOKEN_SCOPE=1 gcloud auth application-default login
 
 gcloud auth application-default set-quota-project "$PROJECT_ID"
 
-# Obter número do projeto
-PROJECT_NUMBER="$(
-  gcloud projects describe "$PROJECT_ID" \
-    --format="value(projectNumber)"
-)"
+PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)")"
 
-# Disponibilizar o projeto para o Terraform
 export TF_VAR_project_id="$PROJECT_ID"
 
-# Verificar APIs habilitadas
-gcloud services list \
-  --enabled \
-  --project="$PROJECT_ID" \
-  --format="table(config.name)"
+gcloud services list --enabled --project="$PROJECT_ID" --format="table(config.name)"
 
-# Verificar permissões da Service Account
-gcloud projects get-iam-policy "$PROJECT_ID" \
-  --flatten="bindings[].members" \
-  --filter="bindings.members:serviceAccount:${SA_EMAIL}" \
-  --format="table(bindings.role)"
+gcloud projects get-iam-policy "$PROJECT_ID" --flatten="bindings[].members" --filter="bindings.members:serviceAccount:${SA_EMAIL}" --format="table(bindings.role)"
+PROJECT_ID="$(gh variable get GCP_PROJECT_ID)"
 
-# Exibir informações finais
+gcloud services enable cloudresourcemanager.googleapis.com \
+  --project="$PROJECT_ID"
 echo "Project ID: $PROJECT_ID"
 echo "Project number: $PROJECT_NUMBER"
 echo "Billing account: $BILLING_ACCOUNT_ID"
 echo "Service Account: $SA_EMAIL"
 echo "Terraform project: $TF_VAR_project_id"
-
 ```
 ### . SSH Key for Airflow VM
 
