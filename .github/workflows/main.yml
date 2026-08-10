@@ -1,10 +1,9 @@
-# .github/workflows/main.yml
 name: Pipeline CI
 
 on:
   push:
     branches:
-      - '*'
+      - "**"
 
 jobs:
   test-auth:
@@ -15,9 +14,7 @@ jobs:
     needs: test-auth
     uses: ./.github/workflows/terraform.yml
     secrets: inherit
-    with:
-      branch: ${{ github.ref_name }}
-      
+
   airflow:
     needs: terraform
     uses: ./.github/workflows/airflow.yml

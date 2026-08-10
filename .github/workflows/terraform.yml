@@ -2,17 +2,18 @@ name: Terraform CI
 
 on:
   workflow_call:
-    inputs:
-      branch:
-        required: true
-        type: string
 
 jobs:
   terraform:
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: ./terraform/infra
+
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
 
     steps:
       - name: Checkout
@@ -25,18 +26,27 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          create_credentials_file: true
           export_environment_variables: true
 
       - name: Terraform Init
-        run: terraform init -reconfigure
+        run: |
+          terraform init \
+            -reconfigure \
+            -backend-config="bucket=${GCP_PROJECT_ID}-tf-state"
 
       - name: Terraform Plan
-        run: terraform plan -var-file=terraform.tfvars -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
+        run: |
+          terraform plan \
+            -var-file="terraform.tfvars" \
+            -var="project_id=${GCP_PROJECT_ID}" \
+            -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
 
       - name: Terraform Apply
-        if: inputs.branch == 'dev'
-        run: terraform apply -auto-approve -var-file=terraform.tfvars -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
-
-      - name: Release state lock on failure
-        if: failure()
-        run: gsutil rm -f gs://zoocamp-project-tf-state/terraform/state/default.tflock || true
+        run: |
+          terraform apply \
+            -auto-approve \
+            -var-file="terraform.tfvars" \
+            -var="project_id=${GCP_PROJECT_ID}" \
+            -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
