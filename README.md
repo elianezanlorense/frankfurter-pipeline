@@ -265,22 +265,45 @@ gh secret list
 ##  Terraform Bootstrap
 
 ```bash
-wget -O - https://apt.releases.hashicorp.com/gpg \
-  | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+wget -O - https://apt.releases.hashicorp.com/gpg |
+  sudo gpg --batch --yes --dearmor \
+    -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
 
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release || lsb_release -cs) main" \
-  | sudo tee /etc/apt/sources.list.d/hashicorp.list
+DIST_CODENAME="$(. /etc/os-release && echo "$VERSION_CODENAME")"
 
-sudo apt update
-sudo apt install -y terraform
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com ${DIST_CODENAME} main" |
+  sudo tee /etc/apt/sources.list.d/hashicorp.list >/dev/null
+
+sudo apt-get update
+sudo apt-get install -y terraform
+
+terraform version
+
 cd terraform/state
 
 export TF_VAR_project_id="$(gcloud config get-value project)"
 export TF_VAR_github_repository="$(gh repo view --json nameWithOwner --jq '.nameWithOwner')"
+
 terraform init
 terraform fmt
-terraform plan 
-terraform apply 
+terraform validate
+terraform plan
+terraform apply
+
+PROJECT_ID="$TF_VAR_project_id"
+BUCKET_NAME="$(terraform output -raw bucket_name)"
+SA_EMAIL="github-actions@${PROJECT_ID}.iam.gserviceaccount.com"
+
+gcloud storage buckets add-iam-policy-binding "gs://${BUCKET_NAME}" \
+  --member="serviceAccount:${SA_EMAIL}" \
+  --role="roles/storage.objectAdmin"
+
+gcloud storage buckets get-iam-policy "gs://${BUCKET_NAME}" \
+  --format="table(bindings.role,bindings.members)"
+
+echo "Project ID: $PROJECT_ID"
+echo "Bucket: $BUCKET_NAME"
+echo "Service Account: $SA_EMAIL"
 ```
 gh secret set GCP_WIF_PROVIDER \
   --body "$(terraform -chdir=terraform/state output -raw workload_identity_provider)"
