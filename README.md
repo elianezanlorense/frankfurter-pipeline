@@ -97,6 +97,7 @@ uv sync
 source .venv/bin/activate
 
 # Install GCP 
+
 sudo apt-get update
 sudo apt-get install -y ca-certificates gnupg curl
 
@@ -111,10 +112,11 @@ sudo apt-get install -y google-cloud-cli
 
 gcloud version
 
+
 ### GCP Setup
 
 ```bash
-set -euo pipefail
+
 
 # Autenticar no GCP
 gcloud auth login
