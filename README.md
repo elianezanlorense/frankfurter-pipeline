@@ -155,6 +155,57 @@ for ROLE in "${ROLES[@]}"; do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:${SA_EMAIL}" --role="$ROLE"
 done
 
+# Habilitar APIs utilizadas pela infraestrutura
+
+gcloud services enable \
+  cloudresourcemanager.googleapis.com \
+  serviceusage.googleapis.com \
+  iam.googleapis.com \
+  iamcredentials.googleapis.com \
+  compute.googleapis.com \
+  storage.googleapis.com \
+  bigquery.googleapis.com \
+  --project="$PROJECT_ID"
+
+# Criar Service Account utilizada pelo GitHub Actions
+
+SA_NAME="github-actions"
+SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+
+if ! gcloud iam service-accounts describe "$SA_EMAIL" \
+  --project="$PROJECT_ID" >/dev/null 2>&1
+then
+  gcloud iam service-accounts create "$SA_NAME" \
+    --display-name="GitHub Actions" \
+    --project="$PROJECT_ID"
+fi
+
+# Conceder permissões utilizadas pelo Terraform
+
+ROLES=(
+  "roles/browser"
+  "roles/storage.admin"
+  "roles/bigquery.admin"
+  "roles/compute.instanceAdmin.v1"
+  "roles/compute.securityAdmin"
+  "roles/iam.serviceAccountUser"
+  "roles/iam.serviceAccountAdmin"
+  "roles/resourcemanager.projectIamAdmin"
+)
+
+for ROLE in "${ROLES[@]}"; do
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:${SA_EMAIL}" \
+    --role="$ROLE"
+done
+
+# Conferir as permissões concedidas
+
+gcloud projects get-iam-policy "$PROJECT_ID" \
+  --flatten="bindings[].members" \
+  --filter="bindings.members:serviceAccount:${SA_EMAIL}" \
+  --format="table(bindings.role)"
+
 OAUTHLIB_RELAX_TOKEN_SCOPE=1 gcloud auth application-default login
 
 gcloud auth application-default set-quota-project "$PROJECT_ID"
