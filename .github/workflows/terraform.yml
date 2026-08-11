@@ -46,8 +46,9 @@ jobs:
             -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
 
       - name: Terraform Apply
-        # só aplica de verdade em push na main; em PR o job para no plan acima
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        # TEMPORÁRIO: liberado também na branch "test" para validar o fluxo completo
+        # antes do merge para main. Remover "refs/heads/test" depois de validar.
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/test'
         run: |
           terraform apply \
             -auto-approve \
