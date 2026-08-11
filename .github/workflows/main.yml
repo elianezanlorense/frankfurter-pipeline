@@ -30,7 +30,7 @@ jobs:
       id-token: write
 
   dbt:
-    needs: terraform
+    needs: airflow
     uses: ./.github/workflows/dbt.yml
     secrets: inherit
     permissions:
