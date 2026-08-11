@@ -109,73 +109,9 @@ cat ~/.ssh/airflow_vm.pub
 ls -l ~/.ssh/airflow_vm*
 ```
 
----
-
-###  GitHub Secrets
-
-Login:
-
 ```bash
-gh auth login
-gh api user --jq '.login'
-git config user.name
-git config user.email
-unset GITHUB_TOKEN
-gh auth login --hostname github.com --git-protocol https --scopes repo,workflow
-gh auth status
-# Evitar que o token automático do Codespace interfira
-unset GITHUB_TOKEN
+bash github-secrets-setup.sh
 
-# Autenticar no GitHub
-gh auth login \
-  --hostname github.com \
-  --git-protocol https \
-  --scopes repo,workflow
-
-# Verificar autenticação
-gh auth status
-gh api user --jq '.login'
-
-# Verificar configuração do Git
-git config user.name
-git config user.email
-
-# Obter informações dinamicamente
-PROJECT_ID="$(gcloud config get-value project)"
-SA_NAME="github-actions"
-SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
-KEY_FILE="$(mktemp)"
-
-# Criar temporariamente a chave JSON
-gcloud iam service-accounts keys create "$KEY_FILE" \
-  --iam-account="$SA_EMAIL" \
-  --project="$PROJECT_ID"
-
-# Enviar configurações do GCP ao GitHub
-gh secret set GCP_CREDENTIALS < "$KEY_FILE"
-gh variable set GCP_PROJECT_ID --body="$PROJECT_ID"
-
-# Enviar chaves SSH ao GitHub
-gh secret set SSH_PRIVATE_KEY < ~/.ssh/airflow_vm
-gh secret set SSH_PUBLIC_KEY < ~/.ssh/airflow_vm.pub
-
-# Remover a credencial temporária
-shred -u "$KEY_FILE"
-unset KEY_FILE
-
-# Conferir
-gh secret list
-gh variable list
-```
-
-
-
-
-Set secrets:
-
-```bash
-gh secret set SSH_PRIVATE_KEY < ~/.ssh/airflow_vm
-gh secret set SSH_PUBLIC_KEY < ~/.ssh/airflow_vm.pub
 ```
 
 Check:
@@ -189,54 +125,9 @@ gh secret list
 ##  Terraform Bootstrap
 
 ```bash
-wget -O - https://apt.releases.hashicorp.com/gpg |
-  sudo gpg --batch --yes --dearmor \
-    -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+bash terraform-setup.sh
 
-DIST_CODENAME="$(. /etc/os-release && echo "$VERSION_CODENAME")"
-
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com ${DIST_CODENAME} main" |
-  sudo tee /etc/apt/sources.list.d/hashicorp.list >/dev/null
-
-sudo apt-get update
-sudo apt-get install -y terraform
-
-terraform version
-
-cd terraform/state
-
-export TF_VAR_project_id="$(gcloud config get-value project)"
-export TF_VAR_github_repository="$(gh repo view --json nameWithOwner --jq '.nameWithOwner')"
-
-terraform init
-terraform fmt
-terraform validate
-terraform plan
-terraform apply
-
-PROJECT_ID="$TF_VAR_project_id"
-BUCKET_NAME="$(terraform output -raw bucket_name)"
-SA_EMAIL="github-actions@${PROJECT_ID}.iam.gserviceaccount.com"
-
-gcloud storage buckets add-iam-policy-binding "gs://${BUCKET_NAME}" \
-  --member="serviceAccount:${SA_EMAIL}" \
-  --role="roles/storage.objectAdmin"
-
-gcloud storage buckets get-iam-policy "gs://${BUCKET_NAME}" \
-  --format="table(bindings.role,bindings.members)"
-
-echo "Project ID: $PROJECT_ID"
-echo "Bucket: $BUCKET_NAME"
-echo "Service Account: $SA_EMAIL"
 ```
-gh secret set GCP_WIF_PROVIDER \
-  --body "$(terraform -chdir=terraform/state output -raw workload_identity_provider)"
-
-gh secret set GCP_SA_EMAIL \
-  --body "$(terraform -chdir=terraform/state output -raw terraform_runner_sa_email)"
-
-gh secret list --app actions
-
 ---
 
 ## Main Infrastructure

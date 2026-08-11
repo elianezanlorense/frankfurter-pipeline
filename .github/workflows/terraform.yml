@@ -3,6 +3,10 @@ name: Terraform CI
 on:
   workflow_call:
 
+permissions:
+  contents: read
+  id-token: write   # obrigatório: permite gerar o token OIDC usado pelo WIF
+
 jobs:
   terraform:
     runs-on: ubuntu-latest
@@ -25,10 +29,8 @@ jobs:
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
-          project_id: ${{ vars.GCP_PROJECT_ID }}
-          create_credentials_file: true
-          export_environment_variables: true
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
       - name: Terraform Init
         run: |
@@ -44,6 +46,8 @@ jobs:
             -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
 
       - name: Terraform Apply
+        # só aplica de verdade em push na main; em PR o job para no plan acima
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           terraform apply \
             -auto-approve \
