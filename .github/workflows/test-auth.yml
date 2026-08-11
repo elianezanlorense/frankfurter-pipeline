@@ -1,45 +1,25 @@
-name: Teste GCP Auth
-
-on:
-  workflow_call:
-
-permissions:
-  contents: read
-
 jobs:
   test-auth:
-    name: Testar autenticação no GCP
-    runs-on: ubuntu-latest
+    uses: ./.github/workflows/test-auth.yml
+    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  terraform:
+    needs: test-auth
+    uses: ./.github/workflows/terraform.yml
+    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write
 
-      - name: Autenticar no GCP
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
-          project_id: ${{ vars.GCP_PROJECT_ID }}
-          create_credentials_file: true
-          export_environment_variables: true
+  airflow:
+    needs: terraform
+    uses: ./.github/workflows/airflow.yml
+    secrets: inherit
 
-      - name: Instalar gcloud
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ vars.GCP_PROJECT_ID }}
-
-      - name: Verificar autenticação
-        run: |
-          gcloud auth list \
-            --filter="status:ACTIVE" \
-            --format="value(account)"
-
-      - name: Verificar projeto
-        run: |
-          gcloud projects describe "${{ vars.GCP_PROJECT_ID }}" \
-            --format="table(projectId,projectNumber,lifecycleState)"
-
-      - name: Testar acesso ao GCS
-        run: |
-          gcloud storage buckets list \
-            --project="${{ vars.GCP_PROJECT_ID }}"
+  dbt:
+    needs: terraform
+    uses: ./.github/workflows/dbt.yml
+    secrets: inherit
