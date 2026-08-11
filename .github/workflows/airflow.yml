@@ -83,7 +83,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no \
               -i /tmp/airflow_key \
               airflow@${{ steps.vm_ip.outputs.ip }} 'bash -s' <<'REMOTE'
-            export AIRFLOW_HOME=/opt/airflow
+            source /opt/airflow/airflow_env.sh
             source /opt/airflow/venv/bin/activate
 
             for i in {1..20}; do

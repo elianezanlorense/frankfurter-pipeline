@@ -50,13 +50,19 @@ airflow users create \
   --email admin@example.com
 EOF
 
-# Configura variáveis de ambiente globais para o usuário airflow
-# (necessário para sessões SSH manuais, ex: CI rodando "airflow dags list")
-echo "export AIRFLOW_HOME=/opt/airflow" >> /home/airflow/.bashrc
-echo "export PATH=/opt/airflow/venv/bin:\$PATH" >> /home/airflow/.bashrc
-echo "export GCP_PROJECT_ID=${PROJECT_ID}" >> /home/airflow/.bashrc
-echo "export GCS_BUCKET=${GCS_BUCKET}" >> /home/airflow/.bashrc
-echo "export BQ_DATASET=${BQ_DATASET}" >> /home/airflow/.bashrc
+# --- Arquivo de ambiente dedicado ---
+# Usado por qualquer sessão (interativa ou não), incluindo SSH não-interativo
+# do CI, que não lê ~/.bashrc (o .bashrc padrão do Debian aborta cedo em
+# sessões não-interativas, então export lá nunca chega ao processo do CI).
+cat > /opt/airflow/airflow_env.sh << ENVEOF
+export AIRFLOW_HOME=/opt/airflow
+export PATH=/opt/airflow/venv/bin:\$PATH
+export GCP_PROJECT_ID=${PROJECT_ID}
+export GCS_BUCKET=${GCS_BUCKET}
+export BQ_DATASET=${BQ_DATASET}
+ENVEOF
+chown airflow:airflow /opt/airflow/airflow_env.sh
+chmod 644 /opt/airflow/airflow_env.sh
 
 # --- Criação dos serviços systemd (como root) ---
 cat > /etc/systemd/system/airflow-webserver.service << EOF
