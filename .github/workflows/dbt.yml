@@ -4,6 +4,10 @@ name: dbt CI
 on:
   workflow_call:
 
+permissions:
+  contents: read
+  id-token: write   # obrigatório para o WIF gerar o token OIDC
+
 jobs:
   dbt:
     runs-on: ubuntu-latest
@@ -26,7 +30,8 @@ jobs:
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
           export_environment_variables: true
 
       - name: Setup dbt profiles
@@ -38,12 +43,11 @@ jobs:
             outputs:
               dev:
                 type: bigquery
-                method: service-account
-                project: zoocamp-project
+                method: oauth
+                project: ${{ vars.GCP_PROJECT_ID }}
                 dataset: frankfurter_dev
                 location: EU
                 threads: 4
-                keyfile: $GOOGLE_APPLICATION_CREDENTIALS
           EOF
 
       - name: dbt deps
