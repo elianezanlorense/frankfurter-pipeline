@@ -28,8 +28,8 @@ jobs:
         id: vm_ip
         run: |
           IP=$(gcloud compute instances describe airflow-vm \
-            --zone=europe-west1-b \
-            --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+              --zone=europe-west1-b \
+              --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
           echo "ip=$IP" >> "$GITHUB_OUTPUT"
 
       - name: Configure SSH key
@@ -58,30 +58,46 @@ jobs:
       - name: Copy DAGs to VM
         run: |
           scp -o StrictHostKeyChecking=no \
-            -i /tmp/airflow_key \
-            airflow/dags/*.py \
-            airflow@${{ steps.vm_ip.outputs.ip }}:/opt/airflow/dags/
+              -i /tmp/airflow_key \
+              airflow/dags/*.py \
+              airflow@${{ steps.vm_ip.outputs.ip }}:/opt/airflow/dags/
+
+      - name: Copy requirements to VM
+        run: |
+          scp -o StrictHostKeyChecking=no \
+              -i /tmp/airflow_key \
+              airflow/requirements.txt \
+              airflow@${{ steps.vm_ip.outputs.ip }}:/opt/airflow/requirements.txt
+
+      - name: Install DAG dependencies on VM
+        run: |
+          ssh -o StrictHostKeyChecking=no \
+              -i /tmp/airflow_key \
+              airflow@${{ steps.vm_ip.outputs.ip }} 'bash -s' <<'REMOTE'
+            source /opt/airflow/venv/bin/activate
+            pip install -r /opt/airflow/requirements.txt
+          REMOTE
 
       - name: Wait and trigger DAG
         run: |
           ssh -o StrictHostKeyChecking=no \
-            -i /tmp/airflow_key \
-            airflow@${{ steps.vm_ip.outputs.ip }} 'bash -s' <<'REMOTE'
-          export AIRFLOW_HOME=/opt/airflow
-          source /opt/airflow/venv/bin/activate
+              -i /tmp/airflow_key \
+              airflow@${{ steps.vm_ip.outputs.ip }} 'bash -s' <<'REMOTE'
+            export AIRFLOW_HOME=/opt/airflow
+            source /opt/airflow/venv/bin/activate
 
-          for i in {1..20}; do
-            if airflow dags list 2>/dev/null \
-              | grep -q "frankfurter_exchange_rates"; then
-              airflow dags trigger frankfurter_exchange_rates
-              exit 0
-            fi
+            for i in {1..20}; do
+              if airflow dags list 2>/dev/null \
+                | grep -q "frankfurter_exchange_rates"; then
+                airflow dags trigger frankfurter_exchange_rates
+                exit 0
+              fi
 
-            echo "Aguardando DAG ser registrada... tentativa $i/20"
-            sleep 15
-          done
+              echo "Aguardando DAG ser registrada... tentativa $i/20"
+              sleep 15
+            done
 
-          echo "DAG não foi registrada."
-          airflow dags list-import-errors
-          exit 1
+            echo "DAG não foi registrada."
+            airflow dags list-import-errors
+            exit 1
           REMOTE
