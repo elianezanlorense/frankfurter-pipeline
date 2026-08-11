@@ -2,17 +2,22 @@ name: Terraform CI
 
 on:
   workflow_call:
-    inputs:
-      branch:
-        required: true
-        type: string
+
+permissions:
+  contents: read
+  id-token: write   # obrigatório: permite gerar o token OIDC usado pelo WIF
 
 jobs:
   terraform:
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: ./terraform/infra
+
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
 
     steps:
       - name: Checkout
@@ -24,19 +29,29 @@ jobs:
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
-          export_environment_variables: true
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
       - name: Terraform Init
-        run: terraform init -reconfigure
+        run: |
+          terraform init \
+            -reconfigure \
+            -backend-config="bucket=${GCP_PROJECT_ID}-tf-state"
 
       - name: Terraform Plan
-        run: terraform plan -var-file=terraform.tfvars -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
+        run: |
+          terraform plan \
+            -var-file="terraform.tfvars" \
+            -var="project_id=${GCP_PROJECT_ID}" \
+            -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
 
       - name: Terraform Apply
-        if: inputs.branch == 'dev'
-        run: terraform apply -auto-approve -var-file=terraform.tfvars -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
-
-      - name: Release state lock on failure
-        if: failure()
-        run: gsutil rm -f gs://zoocamp-project-tf-state/terraform/state/default.tflock || true
+        # TEMPORÁRIO: liberado também na branch "test" para validar o fluxo completo
+        # antes do merge para main. Remover "refs/heads/test" depois de validar.
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/test'
+        run: |
+          terraform apply \
+            -auto-approve \
+            -var-file="terraform.tfvars" \
+            -var="project_id=${GCP_PROJECT_ID}" \
+            -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
