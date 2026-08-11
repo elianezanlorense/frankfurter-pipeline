@@ -51,8 +51,12 @@ airflow users create \
 EOF
 
 # Configura variáveis de ambiente globais para o usuário airflow
+# (necessário para sessões SSH manuais, ex: CI rodando "airflow dags list")
 echo "export AIRFLOW_HOME=/opt/airflow" >> /home/airflow/.bashrc
 echo "export PATH=/opt/airflow/venv/bin:\$PATH" >> /home/airflow/.bashrc
+echo "export GCP_PROJECT_ID=${PROJECT_ID}" >> /home/airflow/.bashrc
+echo "export GCS_BUCKET=${GCS_BUCKET}" >> /home/airflow/.bashrc
+echo "export BQ_DATASET=${BQ_DATASET}" >> /home/airflow/.bashrc
 
 # --- Criação dos serviços systemd (como root) ---
 cat > /etc/systemd/system/airflow-webserver.service << EOF
