@@ -3,13 +3,21 @@ import json
 import requests
 from datetime import date, datetime
 from google.cloud import bigquery, storage
+import os
+import google.auth
 
 # ── Config Sincronizada ──────────────────────────────────────────────────────
-PROJECT_ID   = "zoocamp-project"
-DATASET      = "frankfurter_dev"
-TABLE        = "exchange_rates"
-BUCKET_NAME  = "frankfurter-dl"
-TABLE_ID     = f"{PROJECT_ID}.{DATASET}.{TABLE}"
+
+try:
+    PROJECT_ID = os.environ["GCP_PROJECT_ID"]
+except KeyError:
+    _, PROJECT_ID = google.auth.default()
+
+DATASET = os.environ["BQ_DATASET"]
+TABLE = os.environ["BQ_TABLE"]
+BUCKET_NAME = os.environ["GCS_BUCKET"]
+
+TABLE_ID = f"{PROJECT_ID}.{DATASET}.{TABLE}"
 # ─────────────────────────────────────────────────────────────────────────────
 
 def fetch_range(start: str, end: str) -> dict:
@@ -106,10 +114,10 @@ def main():
 
     data = fetch_range(str(start_dt), str(end_dt))
     save_to_gcs(data, str(start_dt), str(end_dt))
-    
+
     rows = build_rows(data)
     print(f"Built {len(rows)} rows from API response")
-    
+
     load_to_bigquery(rows)
 
 if __name__ == "__main__":
