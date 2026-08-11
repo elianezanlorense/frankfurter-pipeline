@@ -9,6 +9,9 @@ jobs:
   test-auth:
     uses: ./.github/workflows/test-auth.yml
     secrets: inherit
+    permissions:
+      contents: read
+      id-token: write
 
   terraform:
     needs: test-auth
