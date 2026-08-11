@@ -129,6 +129,7 @@ bash terraform-setup.sh
 
 ```
 ---
+gcloud config get-value account
 
 ## Main Infrastructure
 
