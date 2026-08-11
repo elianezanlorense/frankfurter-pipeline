@@ -3,8 +3,14 @@ set -e
 
 # Atualiza pacotes e instala dependências
 apt-get update -y
-apt-get install -y python3-pip python3-venv ca-certificates sudo
+apt-get install -y python3-pip python3-venv ca-certificates sudo curl
 update-ca-certificates
+
+# --- Descobre valores dinamicamente (sem hardcode) ---
+PROJECT_ID="$(curl -s -H "Metadata-Flavor: Google" \
+  "http://metadata.google.internal/computeMetadata/v1/project/project-id")"
+GCS_BUCKET="${PROJECT_ID}-data-lake"
+BQ_DATASET="frankfurter_dev"
 
 # Cria o diretório base e o usuário airflow (se não existirem)
 mkdir -p /opt/airflow
@@ -44,9 +50,19 @@ airflow users create \
   --email admin@example.com
 EOF
 
-# Configura variáveis de ambiente globais para o usuário airflow
-echo "export AIRFLOW_HOME=/opt/airflow" >> /home/airflow/.bashrc
-echo "export PATH=/opt/airflow/venv/bin:$PATH" >> /home/airflow/.bashrc
+# --- Arquivo de ambiente dedicado ---
+# Usado por qualquer sessão (interativa ou não), incluindo SSH não-interativo
+# do CI, que não lê ~/.bashrc (o .bashrc padrão do Debian aborta cedo em
+# sessões não-interativas, então export lá nunca chega ao processo do CI).
+cat > /opt/airflow/airflow_env.sh << ENVEOF
+export AIRFLOW_HOME=/opt/airflow
+export PATH=/opt/airflow/venv/bin:\$PATH
+export GCP_PROJECT_ID=${PROJECT_ID}
+export GCS_BUCKET=${GCS_BUCKET}
+export BQ_DATASET=${BQ_DATASET}
+ENVEOF
+chown airflow:airflow /opt/airflow/airflow_env.sh
+chmod 644 /opt/airflow/airflow_env.sh
 
 # --- Criação dos serviços systemd (como root) ---
 cat > /etc/systemd/system/airflow-webserver.service << EOF
@@ -60,6 +76,9 @@ Group=airflow
 Environment=AIRFLOW_HOME=/opt/airflow
 Environment=AIRFLOW__CORE__LOAD_EXAMPLES=False
 Environment=PATH=/opt/airflow/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=GCP_PROJECT_ID=${PROJECT_ID}
+Environment=GCS_BUCKET=${GCS_BUCKET}
+Environment=BQ_DATASET=${BQ_DATASET}
 ExecStart=/opt/airflow/venv/bin/airflow webserver --port 8080
 Restart=always
 RestartSec=10
@@ -80,6 +99,9 @@ Environment=AIRFLOW_HOME=/opt/airflow
 Environment=AIRFLOW__CORE__LOAD_EXAMPLES=False
 Environment=AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=False
 Environment=PATH=/opt/airflow/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=GCP_PROJECT_ID=${PROJECT_ID}
+Environment=GCS_BUCKET=${GCS_BUCKET}
+Environment=BQ_DATASET=${BQ_DATASET}
 ExecStart=/opt/airflow/venv/bin/airflow scheduler
 Restart=always
 RestartSec=10
@@ -91,4 +113,4 @@ EOF
 # Inicia os serviços
 systemctl daemon-reload
 systemctl enable airflow-webserver airflow-scheduler
-systemctl start airflow-webserver airflow-scheduler
+systemctl restart airflow-webserver airflow-scheduler

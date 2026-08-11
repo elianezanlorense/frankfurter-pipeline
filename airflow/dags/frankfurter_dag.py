@@ -1,14 +1,20 @@
+import os
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 import requests
 import json
+import google.auth
 from google.cloud import storage, bigquery
 
-# Configurações Unificadas
-PROJECT_ID = "zoocamp-project"
-DATA_LAKE_BUCKET_NAME = "frankfurter-dl"
-BIGQUERY_DATASET = "frankfurter_dev"
+# Configurações Unificadas — vêm das variáveis de ambiente da VM
+try:
+    PROJECT_ID = os.environ["GCP_PROJECT_ID"]
+except KeyError:
+    _, PROJECT_ID = google.auth.default()
+
+DATA_LAKE_BUCKET_NAME = os.environ["GCS_BUCKET"]
+BIGQUERY_DATASET = os.environ["BQ_DATASET"]
 TABLE_ID = f"{PROJECT_ID}.{BIGQUERY_DATASET}.exchange_rates"
 
 default_args = {
