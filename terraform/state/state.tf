@@ -103,3 +103,9 @@ resource "google_project_iam_member" "terraform_service_account_admin" {
   role    = "roles/iam.serviceAccountAdmin"
   member  = "serviceAccount:${google_service_account.terraform_runner.email}"
 }
+
+resource "google_project_service" "compute" {
+  project = var.project_id
+  service = "compute.googleapis.com"
+  disable_on_destroy = false
+}
