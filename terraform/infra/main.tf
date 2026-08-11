@@ -119,7 +119,8 @@ resource "google_compute_instance" "airflow_vm" {
 
   lifecycle {
     replace_triggered_by = [
-      terraform_data.ssh_key
+      terraform_data.ssh_key,
+      terraform_data.startup_script
     ]
   }
 
@@ -128,6 +129,10 @@ resource "google_compute_instance" "airflow_vm" {
 
 resource "terraform_data" "ssh_key" {
   input = var.ssh_public_key
+}
+
+resource "terraform_data" "startup_script" {
+  input = filesha256("${path.module}/startup_script.sh")
 }
 
 # --- FIREWALL ---
