@@ -69,6 +69,18 @@ jobs:
               airflow/requirements.txt \
               airflow@${{ steps.vm_ip.outputs.ip }}:/opt/airflow/requirements.txt
 
+      - name: Sync dbt project on VM
+        run: |
+          ssh -o StrictHostKeyChecking=no \
+              -i /tmp/airflow_key \
+              airflow@${{ steps.vm_ip.outputs.ip }} 'bash -s' <<'REMOTE'
+            if [ -d /opt/airflow/repo ]; then
+              cd /opt/airflow/repo && git pull
+            else
+              git clone https://github.com/elianezanlorense/frankfurter-pipeline.git /opt/airflow/repo
+            fi
+          REMOTE
+
       - name: Install DAG dependencies on VM
         run: |
           ssh -o StrictHostKeyChecking=no \
