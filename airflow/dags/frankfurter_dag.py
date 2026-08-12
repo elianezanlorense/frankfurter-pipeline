@@ -1,6 +1,7 @@
 import os
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+from airflow.operators.bash import BashOperator
 from datetime import datetime, timedelta
 import requests
 import json
@@ -69,4 +70,22 @@ with DAG(
     save_rates = PythonOperator(task_id='save_to_gcs', python_callable=save_to_gcs)
     load_bq = PythonOperator(task_id='load_to_bigquery', python_callable=load_to_bigquery)
 
-    fetch_rates >> save_rates >> load_bq
+    dbt_run = BashOperator(
+        task_id='dbt_run',
+        bash_command=(
+            '/opt/airflow/dbt_venv/bin/dbt run '
+            '--project-dir /opt/airflow/repo/dbt '
+            '--profiles-dir /opt/airflow/.dbt'
+        ),
+    )
+
+    dbt_test = BashOperator(
+        task_id='dbt_test',
+        bash_command=(
+            '/opt/airflow/dbt_venv/bin/dbt test '
+            '--project-dir /opt/airflow/repo/dbt '
+            '--profiles-dir /opt/airflow/.dbt'
+        ),
+    )
+
+    fetch_rates >> save_rates >> load_bq >> dbt_run >> dbt_test

@@ -130,7 +130,17 @@ bash terraform-setup.sh
 ```
 ---
 gcloud config get-value account
+PROJECT_ID="$(gcloud config get-value project)"
+echo "$PROJECT_ID"
+bq ls --project_id="$PROJECT_ID"
+bq ls "$PROJECT_ID:frankfurter_dev"
 
+sudo python3 -m venv /opt/airflow/dbt_venv
+sudo chown -R airflow:airflow /opt/airflow/dbt_venv
+sudo -u airflow /opt/airflow/dbt_venv/bin/pip install dbt-bigquery
+Cria o venv em /opt/airflow/dbt_venv
+Transfere a posse da pasta pro usuário airflow
+Instala o dbt-bigquery dentro desse venv, já como usuário airflow
 ## Main Infrastructure
 
 ```bash
