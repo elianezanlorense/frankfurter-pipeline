@@ -111,7 +111,7 @@ ls -l ~/.ssh/airflow_vm*
 
 ```bash
 bash github-secrets-setup.sh
-
+tt
 ```
 
 Check:
