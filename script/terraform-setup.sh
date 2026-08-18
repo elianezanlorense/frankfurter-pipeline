@@ -75,6 +75,23 @@ echo "==> credenciais: ${GOOGLE_APPLICATION_CREDENTIALS:-<não definido>}"
 echo "==> Entrando em $TERRAFORM_DIR ..."
 cd "$TERRAFORM_DIR"
 
+# ---------------------------------------------------------------------------
+# 2.1 Limpar state local e cache do provider.
+#     O backend é local, então o state de uma rodada anterior (apontando
+#     para um project_id que já não existe, ex: projeto de um teste
+#     anterior deletado) ficaria "preso" e o Terraform tentaria ler
+#     recursos de um projeto inexistente, causando erros de permissão
+#     confusos em vez de recriar do zero. Isso torna o script idempotente
+#     entre execuções com projetos diferentes.
+# ---------------------------------------------------------------------------
+if [[ -f terraform.tfstate || -f tfplan ]]; then
+  echo "==> State local antigo encontrado. Limpando para execução idempotente..."
+  rm -f terraform.tfstate terraform.tfstate.backup tfplan
+  rm -rf .terraform
+else
+  echo "==> Nenhum state local anterior encontrado."
+fi
+
 echo "==> terraform init"
 terraform init
 
@@ -88,5 +105,26 @@ echo "==> terraform plan"
 terraform plan -out=tfplan
 
 echo "==> terraform apply"
-terraform apply -auto-approve tfplan
-echo "==> Apply concluído com sucesso."
+MAX_APPLY_RETRIES=3
+APPLY_RETRY_DELAY=30   # segundos entre tentativas em caso de erro transitório de IAM
+
+attempt=1
+while true; do
+  # re-gera o plano a cada tentativa: depois de um apply parcial, o state
+  # muda, e reaplicar o tfplan antigo falha com "Saved plan is stale".
+  terraform plan -out=tfplan
+
+  if terraform apply -auto-approve tfplan; then
+    echo "==> Apply concluído com sucesso."
+    break
+  fi
+
+  if [[ $attempt -ge $MAX_APPLY_RETRIES ]]; then
+    echo "Falha no terraform apply após $MAX_APPLY_RETRIES tentativas (provável causa: permissão de IAM que não terminou de propagar, ou erro real de configuração)." >&2
+    exit 1
+  fi
+
+  echo "==> Apply falhou na tentativa $attempt (possível propagação de IAM ainda em andamento). Aguardando ${APPLY_RETRY_DELAY}s antes de tentar de novo..."
+  sleep "$APPLY_RETRY_DELAY"
+  attempt=$((attempt + 1))
+done

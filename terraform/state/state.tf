@@ -105,7 +105,7 @@ resource "google_project_iam_member" "terraform_service_account_admin" {
 }
 
 resource "google_project_service" "compute" {
-  project = var.project_id
-  service = "compute.googleapis.com"
+  project            = var.project_id
+  service            = "compute.googleapis.com"
   disable_on_destroy = false
 }

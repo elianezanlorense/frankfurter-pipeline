@@ -1,3 +1,8 @@
+gcloud billing projects list 
+ gcloud billing projects unlink
+ ls -l script/terraform-setup.shchmod +x
+
+
 gcloud auth application-default set-quota-project frankfurter-pipeline
 gcloud services enable \
   cloudresourcemanager.googleapis.com \
