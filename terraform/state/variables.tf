@@ -13,15 +13,8 @@ variable "location" {
   default = "EU"
 }
 
-#variable "bucket_name" {
-# type = string
-#}
-
-
-
 variable "github_repository" {
   type = string
-  # exemplo: "seu-user-ou-org/seu-repo"
 }
 
 variable "workload_identity_pool_id" {
