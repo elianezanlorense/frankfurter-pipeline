@@ -42,8 +42,7 @@ jobs:
         run: |
           terraform plan \
             -var-file="terraform.tfvars" \
-            -var="project_id=${GCP_PROJECT_ID}" \
-            -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
+            -var="project_id=${GCP_PROJECT_ID}"
 
       - name: Terraform Apply
         # TEMPORÁRIO: liberado também na branch "test" para validar o fluxo completo
@@ -53,5 +52,4 @@ jobs:
           terraform apply \
             -auto-approve \
             -var-file="terraform.tfvars" \
-            -var="project_id=${GCP_PROJECT_ID}" \
-            -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
+            -var="project_id=${GCP_PROJECT_ID}"
