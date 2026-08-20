@@ -16,6 +16,10 @@ jobs:
       REGION: europe-west1
 
     steps:
+      # ---------------------------------------------------------------------
+      # Código e autenticação
+      # ---------------------------------------------------------------------
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -25,8 +29,6 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
-      # Instala o gcloud e o plugin necessário para o kubectl
-      # autenticar no cluster GKE.
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v3
         with:
@@ -39,7 +41,7 @@ jobs:
           gke-gcloud-auth-plugin --version
 
       # ---------------------------------------------------------------------
-      # Build e push da imagem customizada do Airflow
+      # Build da imagem do Airflow
       # ---------------------------------------------------------------------
 
       - name: Configure Docker for Artifact Registry
@@ -53,7 +55,9 @@ jobs:
         run: |
           IMAGE="${REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/airflow:${{ github.sha }}"
 
-          docker build -t "$IMAGE" .
+          docker build \
+            --tag "$IMAGE" \
+            .
 
           echo "AIRFLOW_IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
@@ -63,7 +67,7 @@ jobs:
           docker push "$AIRFLOW_IMAGE"
 
       # ---------------------------------------------------------------------
-      # Deploy somente na main
+      # Conexão com o GKE
       # ---------------------------------------------------------------------
 
       - name: Get GKE credentials
@@ -95,11 +99,13 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: |
           kubectl get namespace airflow
+
           kubectl get serviceaccount airflow \
-            --namespace airflow
+            --namespace airflow \
+            --output yaml
 
       # ---------------------------------------------------------------------
-      # ConfigMap com variáveis utilizadas pelas DAGs
+      # ConfigMap utilizada pelas DAGs
       # ---------------------------------------------------------------------
 
       - name: Create ConfigMap with pipeline variables
@@ -114,8 +120,14 @@ jobs:
             --output yaml |
             kubectl apply -f -
 
+      - name: Verify pipeline ConfigMap
+        if: github.ref == 'refs/heads/main'
+        run: |
+          kubectl get configmap airflow-pipeline-config \
+            --namespace airflow
+
       # ---------------------------------------------------------------------
-      # Chave SSH utilizada pelo git-sync
+      # Secret utilizado pelo git-sync
       # ---------------------------------------------------------------------
 
       - name: Create git-sync SSH secret
@@ -127,6 +139,12 @@ jobs:
             --dry-run=client \
             --output yaml |
             kubectl apply -f -
+
+      - name: Verify git-sync SSH secret
+        if: github.ref == 'refs/heads/main'
+        run: |
+          kubectl get secret airflow-git-ssh \
+            --namespace airflow
 
       # ---------------------------------------------------------------------
       # Helm
@@ -147,14 +165,69 @@ jobs:
             --values helm/airflow-values.yaml \
             --set images.airflow.repository="${REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/airflow" \
             --set images.airflow.tag="${{ github.sha }}" \
-            --timeout 10m0s \
-            --wait
+            --timeout 20m0s \
+            --wait \
+            --debug
 
-      - name: Verify Airflow deployment
-        if: github.ref == 'refs/heads/main'
+      # Executa mesmo quando o Helm falha para mostrar a causa do timeout.
+      - name: Diagnose Airflow deployment
+        if: always() && github.ref == 'refs/heads/main'
         run: |
+          echo "===== Helm releases ====="
+          helm list \
+            --namespace airflow || true
+
+          echo "===== Helm status ====="
+          helm status airflow \
+            --namespace airflow || true
+
+          echo "===== Pods ====="
           kubectl get pods \
+            --namespace airflow \
+            --output wide || true
+
+          echo "===== Deployments ====="
+          kubectl get deployments \
+            --namespace airflow || true
+
+          echo "===== StatefulSets ====="
+          kubectl get statefulsets \
+            --namespace airflow || true
+
+          echo "===== Jobs ====="
+          kubectl get jobs \
+            --namespace airflow || true
+
+          echo "===== PersistentVolumeClaims ====="
+          kubectl get pvc \
+            --namespace airflow || true
+
+          echo "===== Services ====="
+          kubectl get services \
+            --namespace airflow || true
+
+          echo "===== Pod descriptions ====="
+          kubectl describe pods \
+            --namespace airflow || true
+
+          echo "===== Recent events ====="
+          kubectl get events \
+            --namespace airflow \
+            --sort-by='.lastTimestamp' || true
+
+      # Só executa quando todas as etapas anteriores obrigatórias tiveram sucesso.
+      - name: Verify Airflow deployment
+        if: success() && github.ref == 'refs/heads/main'
+        run: |
+          echo "===== Airflow pods ====="
+          kubectl get pods \
+            --namespace airflow \
+            --output wide
+
+          echo "===== Airflow services ====="
+          kubectl get services \
             --namespace airflow
 
-          kubectl get services \
+          echo "===== Airflow Helm release ====="
+          helm status airflow \
             --namespace airflow
