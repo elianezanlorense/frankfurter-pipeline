@@ -42,7 +42,9 @@ jobs:
         run: |
           terraform plan \
             -var-file="terraform.tfvars" \
-            -var="project_id=${GCP_PROJECT_ID}"
+            -var="project_id=${GCP_PROJECT_ID}" \
+            -no-color \
+            | tee plan_output.txt
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main'
@@ -50,4 +52,34 @@ jobs:
           terraform apply \
             -auto-approve \
             -var-file="terraform.tfvars" \
-            -var="project_id=${GCP_PROJECT_ID}"
+            -var="project_id=${GCP_PROJECT_ID}" \
+            -no-color \
+            | tee apply_output.txt
+
+      - name: Write step summary
+        if: always()
+        run: |
+          {
+            echo "## Terraform — resumo"
+            echo ""
+            echo "**Projeto:** \`${GCP_PROJECT_ID}\`"
+            echo "**Branch:** \`${{ github.ref_name }}\`"
+            echo ""
+            if [[ -f plan_output.txt ]]; then
+              echo "<details><summary>terraform plan (clique para expandir)</summary>"
+              echo ""
+              echo '```'
+              tail -n 60 plan_output.txt
+              echo '```'
+              echo "</details>"
+            fi
+            if [[ -f apply_output.txt ]]; then
+              echo ""
+              echo "<details><summary>terraform apply (clique para expandir)</summary>"
+              echo ""
+              echo '```'
+              tail -n 60 apply_output.txt
+              echo '```'
+              echo "</details>"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
