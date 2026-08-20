@@ -1,280 +1,75 @@
-# values.yaml para o Helm chart oficial do Apache Airflow.
+# values.yaml para o Helm chart oficial do Airflow (apache-airflow/airflow).
+# https://airflow.apache.org/docs/helm-chart/stable/parameters-ref.html
 #
-# Imagem Airflow:
-#   apache/airflow:2.9.1-python3.11
-#
-# Helm chart:
-#   apache-airflow/airflow 1.16.0
-
-# ---------------------------------------------------------------------------
-# Airflow
-# ---------------------------------------------------------------------------
-
-airflowVersion: "2.9.1"
-
+# image.repository e image.tag são sobrescritos via --set no CI, apontando
+# para a imagem que acabou de ser buildada/publicada no Artifact Registry.
 executor: KubernetesExecutor
-
-# ---------------------------------------------------------------------------
-# Imagem customizada
-#
-# Repository e tag são sobrescritos pelo workflow.
-# ---------------------------------------------------------------------------
 
 images:
   airflow:
-    repository: PLACEHOLDER
-    tag: PLACEHOLDER
+    repository: PLACEHOLDER # sobrescrito via --set no CI
+    tag: PLACEHOLDER        # sobrescrito via --set no CI
     pullPolicy: IfNotPresent
 
-  useDefaultImageForMigration: false
+# Usa a KSA "airflow" que o Terraform + k8s-namespace-sa.yaml já criaram e
+# vincularam via Workload Identity à service account do GCP (airflow-gke-sa).
+# create: false porque a KSA já existe (não deixamos o Helm criar outra).
+serviceAccount:
+  create: false
+  name: airflow
 
-  migrationsWaitTimeout: 300
-
-# ---------------------------------------------------------------------------
-# Jobs de inicialização
-# ---------------------------------------------------------------------------
-
-createUserJob:
-  useHelmHooks: false
-  applyCustomEnv: false
-
-  resources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 500m
-      memory: 512Mi
-
-migrateDatabaseJob:
-  enabled: true
-  useHelmHooks: false
-  applyCustomEnv: false
-
-  resources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 500m
-      memory: 512Mi
-
-# ---------------------------------------------------------------------------
-# DAGs
-#
-# Repositório público: utiliza HTTPS e não precisa de Secret SSH.
-# ---------------------------------------------------------------------------
-
+# DAGs vêm do próprio repositório via git-sync, puxando só a subpasta
+# airflow/dags a cada poucos segundos — evita precisar rebuildar a imagem
+# toda vez que uma DAG muda.
 dags:
-  persistence:
-    enabled: false
-
   gitSync:
     enabled: true
-    repo: https://github.com/elianezanlorense/frankfurter-pipeline.git
+    repo: ssh://git@github.com/elianezanlorense/frankfurter-pipeline.git
     branch: main
-    ref: main
-    rev: HEAD
-    subPath: airflow/dags
+    subPath: "airflow/dags"
+    sshKeySecret: airflow-git-ssh
     period: 30s
 
-    resources:
-      requests:
-        cpu: 50m
-        memory: 64Mi
-      limits:
-        cpu: 200m
-        memory: 256Mi
-
-# ---------------------------------------------------------------------------
-# PostgreSQL
+# Banco de metadados: usa o Postgres embutido no próprio chart (padrão).
+# Suficiente para esse volume de uso; se crescer, migrar para Cloud SQL.
 #
-# A imagem originalmente usada pelo subchart foi removida do repositório
-# principal da Bitnami. O repositório bitnamilegacy é um fallback temporário.
-# ---------------------------------------------------------------------------
-
+# NOTA: a Bitnami (dona da imagem padrão do subchart de postgresql) moveu a
+# maior parte do catálogo público para o repositório "bitnamilegacy" a
+# partir de 2025 — a tag antiga que o chart do Airflow referenciava por
+# padrão (bitnami/postgresql) some do ar e causa ImagePullBackOff. Apontamos
+# explicitamente para bitnamilegacy para continuar funcionando sem custo.
 postgresql:
   enabled: true
-
   image:
     registry: docker.io
     repository: bitnamilegacy/postgresql
-    tag: 16.1.0-debian-11-r15
-    pullPolicy: IfNotPresent
 
-  primary:
-    resources:
-      requests:
-        cpu: 100m
-        memory: 256Mi
-      limits:
-        cpu: 500m
-        memory: 512Mi
-
-    persistence:
-      enabled: true
-      size: 8Gi
-
-# ---------------------------------------------------------------------------
-# Redis e StatsD
-#
-# Não são necessários para este ambiente com KubernetesExecutor.
-# ---------------------------------------------------------------------------
-
-redis:
-  enabled: false
-
-statsd:
-  enabled: false
-
-# ---------------------------------------------------------------------------
-# Logs
-#
-# Usa emptyDir para evitar volumes de logs de 100 GiB e estouro da quota SSD.
-# ---------------------------------------------------------------------------
-
-logs:
-  persistence:
-    enabled: false
-
-# ---------------------------------------------------------------------------
-# Scheduler
-# ---------------------------------------------------------------------------
-
-scheduler:
-  enabled: true
-  replicas: 1
-
-  strategy:
-    type: Recreate
-
-  resources:
-    requests:
-      cpu: 250m
-      memory: 512Mi
-    limits:
-      cpu: 750m
-      memory: 1Gi
-
-  waitForMigrations:
-    enabled: false
-
-  serviceAccount:
-    create: false
-    name: airflow
-
-  logGroomerSidecar:
-    enabled: false
-
-    resources:
-      requests:
-        cpu: 25m
-        memory: 64Mi
-      limits:
-        cpu: 100m
-        memory: 128Mi
-
-# ---------------------------------------------------------------------------
-# Webserver — Airflow 2
-# ---------------------------------------------------------------------------
-
-webserver:
-  enabled: true
-  replicas: 1
-
-  strategy:
-    type: Recreate
-
-  resources:
-    requests:
-      cpu: 250m
-      memory: 512Mi
-    limits:
-      cpu: 750m
-      memory: 1Gi
-
-  waitForMigrations:
-    enabled: false
-
-  serviceAccount:
-    create: false
-    name: airflow
-
-  service:
-    type: LoadBalancer
-
-# ---------------------------------------------------------------------------
-# Triggerer
-#
-# Desabilitado neste ambiente dev. Ele é necessário apenas para operadores
-# deferrable e não é necessário para a pipeline atual.
-# ---------------------------------------------------------------------------
-
-triggerer:
-  enabled: false
-
-  persistence:
-    enabled: false
-
-# ---------------------------------------------------------------------------
-# Workers criados dinamicamente pelo KubernetesExecutor
-# ---------------------------------------------------------------------------
-
-workers:
-  persistence:
-    enabled: false
-
-  resources:
-    requests:
-      cpu: 250m
-      memory: 512Mi
-    limits:
-      cpu: 1
-      memory: 1Gi
-
-  serviceAccount:
-    create: false
-    name: airflow
-
-# ---------------------------------------------------------------------------
-# DAG processor
-#
-# No Airflow 2.9.1, o scheduler pode processar as DAGs diretamente.
-# ---------------------------------------------------------------------------
-
-dagProcessor:
-  enabled: false
-
-# ---------------------------------------------------------------------------
-# Variáveis utilizadas pelas DAGs
-# ---------------------------------------------------------------------------
-
-extraEnv: |
+# Variáveis de ambiente que as DAGs esperam (frankfurter_dag.py lê
+# GCP_PROJECT_ID, GCS_BUCKET, BQ_DATASET via os.environ).
+env:
   - name: GCP_PROJECT_ID
     valueFrom:
       configMapKeyRef:
         name: airflow-pipeline-config
         key: GCP_PROJECT_ID
-
   - name: GCS_BUCKET
     valueFrom:
       configMapKeyRef:
         name: airflow-pipeline-config
         key: GCS_BUCKET
-
   - name: BQ_DATASET
     valueFrom:
       configMapKeyRef:
         name: airflow-pipeline-config
         key: BQ_DATASET
 
-# ---------------------------------------------------------------------------
-# Configuração do Airflow
-# ---------------------------------------------------------------------------
-
+# Exemplos de DAG desligados (não precisamos deles poluindo a UI).
 config:
   core:
-    load_examples: "False"
+    load_examples: 'False'
 
-  metrics:
-    statsd_on: "False"
+# Webserver exposto via LoadBalancer para acesso simples à UI. Ajustar para
+# Ingress + TLS depois, se quiser algo mais robusto/seguro.
+webserver:
+  service:
+    type: LoadBalancer
