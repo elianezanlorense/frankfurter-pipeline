@@ -64,7 +64,7 @@ Key questions:
 ├── README.md
 ```
 
---- terraform init -backend-config="bucket=zoocamp-project-660101-tf-state" testar no terminal
+--- terraform init -backend-config="bucket=zoocamp-project-660101-tf-state" testar no terminalter
 
 ##  Setup & Reproducibility
 ```
