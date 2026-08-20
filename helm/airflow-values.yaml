@@ -1,8 +1,8 @@
 # values.yaml para o Helm chart oficial do Airflow.
 # https://airflow.apache.org/docs/helm-chart/stable/parameters-ref.html
 #
-# images.airflow.repository e images.airflow.tag são sobrescritos pelo CI,
-# apontando para a imagem publicada no Artifact Registry.
+# O repository e a tag da imagem são sobrescritos pelo workflow durante
+# o helm upgrade.
 
 # ---------------------------------------------------------------------------
 # Executor
@@ -23,7 +23,7 @@ images:
 # ---------------------------------------------------------------------------
 # Migrations e criação do usuário
 #
-# Como o workflow utiliza "helm upgrade --wait", esses jobs ficam como
+# Como o workflow utiliza "helm upgrade --wait", esses jobs são criados como
 # recursos normais do release, em vez de Helm hooks.
 # ---------------------------------------------------------------------------
 
@@ -39,9 +39,8 @@ migrateDatabaseJob:
 # ---------------------------------------------------------------------------
 # Kubernetes Service Account
 #
-# A KSA "airflow" já é criada antes do Helm pelo arquivo
-# k8s/namespace-sa.yaml e vinculada à Google Service Account
-# airflow-gke-sa por Workload Identity.
+# A KSA airflow é criada pelo arquivo k8s/namespace-sa.yaml e vinculada à
+# Google Service Account airflow-gke-sa por Workload Identity.
 # ---------------------------------------------------------------------------
 
 serviceAccount:
@@ -51,8 +50,8 @@ serviceAccount:
 # ---------------------------------------------------------------------------
 # DAGs
 #
-# O repositório é público, portanto git-sync pode utilizar HTTPS sem chave
-# SSH. A subpasta airflow/dags será sincronizada periodicamente.
+# O repositório é público, portanto o git-sync utiliza HTTPS e não precisa
+# de chave SSH.
 # ---------------------------------------------------------------------------
 
 dags:
@@ -66,8 +65,6 @@ dags:
 
 # ---------------------------------------------------------------------------
 # Banco de metadados
-#
-# Usa PostgreSQL instalado pelo próprio Helm chart.
 # ---------------------------------------------------------------------------
 
 postgresql:
@@ -80,10 +77,11 @@ redis:
 # ---------------------------------------------------------------------------
 # Variáveis utilizadas pelas DAGs
 #
-# O ConfigMap airflow-pipeline-config é criado pelo workflow antes do Helm.
+# O chart valida "env" aceitando apenas name/value. Para utilizar valueFrom
+# com ConfigMap, é necessário usar extraEnv como bloco YAML templado.
 # ---------------------------------------------------------------------------
 
-env:
+extraEnv: |
   - name: GCP_PROJECT_ID
     valueFrom:
       configMapKeyRef:
@@ -113,7 +111,7 @@ config:
 # ---------------------------------------------------------------------------
 # API Server / interface web
 #
-# Versões atuais do chart utilizam apiServer no lugar de webserver.
+# Nas versões atuais do Airflow, a interface é exposta pelo API Server.
 # ---------------------------------------------------------------------------
 
 apiServer:
