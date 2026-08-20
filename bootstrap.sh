@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
+ 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-echo "==> 1/3: Criando projeto GCP e conta de bootstrap..."
-"$SCRIPT_DIR/script/account-setup.sh"
-
-echo "==> 2/3: Provisionando infraestrutura via Terraform..."
-"$SCRIPT_DIR/script/terraform-setup.sh"
-
-echo "==> 3/3: Configurando secrets/variáveis no GitHub..."
-"$SCRIPT_DIR/script/github-secrets-setup.sh"
-
-echo "==> Bootstrap completo! O pipeline CI/CD já pode rodar via push normal."
+LOG="$SCRIPT_DIR/script/log.sh"
+ 
+chmod +x "$SCRIPT_DIR"/script/*.sh
+ 
+export LOG_FILE="$SCRIPT_DIR/logs/bootstrap_$(date +%Y%m%d_%H%M%S).log"
+mkdir -p "$(dirname "$LOG_FILE")"
+ 
+"$LOG" "$SCRIPT_DIR/script/branch-setup.sh"
+"$LOG" "$SCRIPT_DIR/script/uv-setup.sh"
+"$LOG" "$SCRIPT_DIR/script/terraform-setup.sh"
+"$LOG" "$SCRIPT_DIR/script/account-setup.sh"
+"$LOG" "$SCRIPT_DIR/script/github-secrets-setup.sh"
+ 

@@ -31,10 +31,15 @@ fi
 gcloud version
 
 # ---------------------------------------------------------------------------
-# 2. Autenticação de usuário
+# 2. Autenticação de usuário (só se ainda não houver uma conta ativa logada)
 # ---------------------------------------------------------------------------
-echo "==> Autenticando no Google Cloud..."
-gcloud auth login
+ACTIVE_ACCOUNT="$(gcloud auth list --filter=status:ACTIVE --format="value(account)" 2>/dev/null)"
+if [[ -z "$ACTIVE_ACCOUNT" ]]; then
+  echo "==> Nenhuma conta ativa encontrada. Autenticando no Google Cloud..."
+  gcloud auth login
+else
+  echo "==> Já autenticado como: $ACTIVE_ACCOUNT (pulando login)"
+fi
 
 # ---------------------------------------------------------------------------
 # 3. Criar projeto (com retry em caso de 429 - rate limit do quota project padrão)
@@ -81,7 +86,12 @@ gcloud services enable \
   serviceusage.googleapis.com \
   iam.googleapis.com \
   iamcredentials.googleapis.com \
+  sts.googleapis.com \
   --project="$PROJECT_ID"
+
+# pequena espera para propagação da habilitação das APIs (evita 403
+# transitório ao criar recursos de IAM/Workload Identity logo em seguida)
+sleep 15
 
 # ---------------------------------------------------------------------------
 # 6. Criar service account de bootstrap (temporária) + chave
@@ -98,6 +108,22 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
   --member="serviceAccount:tf-bootstrap@${PROJECT_ID}.iam.gserviceaccount.com" \
   --role="roles/owner" \
   --condition=None
+
+# NOTA: roles/owner nem sempre inclui de forma confiável a permissão
+# iam.workloadIdentityPools.create (comportamento conhecido/reportado do
+# GCP: https://github.com/hashicorp/terraform-provider-google/issues/11789).
+# Concedemos a role explicitamente para evitar o erro 403
+# "Permission 'iam.workloadIdentityPools.create' denied" no Terraform.
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+  --member="serviceAccount:tf-bootstrap@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --role="roles/iam.workloadIdentityPoolAdmin" \
+  --condition=None
+
+# espera mais longa para propagação de IAM: permissões de recursos como
+# Workload Identity Pool costumam demorar mais para propagar globalmente
+# do que outros recursos; 10s às vezes não é suficiente.
+echo "==> Aguardando propagação de IAM (60s)..."
+sleep 60
 
 echo "==> Gerando chave temporária da service account..."
 gcloud iam service-accounts keys create /tmp/tf-bootstrap-key.json \

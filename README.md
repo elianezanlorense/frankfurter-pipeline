@@ -64,41 +64,12 @@ Key questions:
 ├── README.md
 ```
 
----
+--- terraform init -backend-config="bucket=zoocamp-project-660101-tf-state" testar no terminal
 
 ##  Setup & Reproducibility
-
-## Git 
-git branch
-git pull origin main
-git switch -c test
-
-# Alias
-echo "alias st='git status'" >> ~/.bashrc
-echo "alias sw='git switch'" >> ~/.bashrc
-echo "alias br='git branch'" >> ~/.bashrc
-echo "alias co='git checkout'" >> ~/.bashrc
-echo "alias cm='git commit'" >> ~/.bashrc
-echo "alias ps='git push'" >> ~/.bashrc
-echo "alias pl='git pull'" >> ~/.bashrc
-echo "alias ga='git add'" >> ~/.bashrc
-echo "alias lg='git log --oneline --graph --decorate --all'" >> ~/.bashrc
-
-source ~/.bashrc
-# to verify all alias 
-alias | grep git
-
-## Virtual envirioment
-curl -LsSf https://astral.sh/uv/install.sh | sh
-source ~/.bashrc
-uv init
-export UV_LINK_MODE=copy
-uv sync
-source .venv/bin/activate
-
-# Install GCP 
 ```
-bash account-setup.sh
+bash set-up-branch.sh
+bash bootstrap.sh
 ```
 ### . SSH Key for Airflow VM
 
