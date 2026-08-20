@@ -1,0 +1,121 @@
+# values.yaml para o Helm chart oficial do Airflow.
+# https://airflow.apache.org/docs/helm-chart/stable/parameters-ref.html
+#
+# images.airflow.repository e images.airflow.tag são sobrescritos pelo CI,
+# apontando para a imagem publicada no Artifact Registry.
+
+# ---------------------------------------------------------------------------
+# Executor
+# ---------------------------------------------------------------------------
+
+executor: KubernetesExecutor
+
+# ---------------------------------------------------------------------------
+# Imagem customizada do Airflow
+# ---------------------------------------------------------------------------
+
+images:
+  airflow:
+    repository: PLACEHOLDER
+    tag: PLACEHOLDER
+    pullPolicy: IfNotPresent
+
+# ---------------------------------------------------------------------------
+# Migrations e criação do usuário
+#
+# Como o workflow utiliza "helm upgrade --wait", esses jobs ficam como
+# recursos normais do release, em vez de Helm hooks.
+# ---------------------------------------------------------------------------
+
+createUserJob:
+  useHelmHooks: false
+  applyCustomEnv: false
+
+migrateDatabaseJob:
+  enabled: true
+  useHelmHooks: false
+  applyCustomEnv: false
+
+# ---------------------------------------------------------------------------
+# Kubernetes Service Account
+#
+# A KSA "airflow" já é criada antes do Helm pelo arquivo
+# k8s/namespace-sa.yaml e vinculada à Google Service Account
+# airflow-gke-sa por Workload Identity.
+# ---------------------------------------------------------------------------
+
+serviceAccount:
+  create: false
+  name: airflow
+
+# ---------------------------------------------------------------------------
+# DAGs
+#
+# O repositório é público, portanto git-sync pode utilizar HTTPS sem chave
+# SSH. A subpasta airflow/dags será sincronizada periodicamente.
+# ---------------------------------------------------------------------------
+
+dags:
+  gitSync:
+    enabled: true
+    repo: https://github.com/elianezanlorense/frankfurter-pipeline.git
+    branch: main
+    rev: HEAD
+    subPath: airflow/dags
+    period: 30s
+
+# ---------------------------------------------------------------------------
+# Banco de metadados
+#
+# Usa PostgreSQL instalado pelo próprio Helm chart.
+# ---------------------------------------------------------------------------
+
+postgresql:
+  enabled: true
+
+# Redis não é necessário com KubernetesExecutor.
+redis:
+  enabled: false
+
+# ---------------------------------------------------------------------------
+# Variáveis utilizadas pelas DAGs
+#
+# O ConfigMap airflow-pipeline-config é criado pelo workflow antes do Helm.
+# ---------------------------------------------------------------------------
+
+env:
+  - name: GCP_PROJECT_ID
+    valueFrom:
+      configMapKeyRef:
+        name: airflow-pipeline-config
+        key: GCP_PROJECT_ID
+
+  - name: GCS_BUCKET
+    valueFrom:
+      configMapKeyRef:
+        name: airflow-pipeline-config
+        key: GCS_BUCKET
+
+  - name: BQ_DATASET
+    valueFrom:
+      configMapKeyRef:
+        name: airflow-pipeline-config
+        key: BQ_DATASET
+
+# ---------------------------------------------------------------------------
+# Configuração do Airflow
+# ---------------------------------------------------------------------------
+
+config:
+  core:
+    load_examples: "False"
+
+# ---------------------------------------------------------------------------
+# API Server / interface web
+#
+# Versões atuais do chart utilizam apiServer no lugar de webserver.
+# ---------------------------------------------------------------------------
+
+apiServer:
+  service:
+    type: LoadBalancer

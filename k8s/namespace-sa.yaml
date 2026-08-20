@@ -1,15 +1,216 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: airflow
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: airflow
-  namespace: airflow
-  annotations:
-    # Vincula esta KSA à Service Account do GCP criada pelo Terraform
-    # (airflow-gke-sa). Substitua PROJECT_ID pelo project_id real antes
-    # de aplicar (ou use envsubst/sed no CI, como no exemplo abaixo).
-    iam.gke.io/gcp-service-account: airflow-gke-sa@PROJECT_ID.iam.gserviceaccount.com
+name: Airflow CI
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy-airflow:
+    runs-on: ubuntu-latest
+
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: europe-west1
+
+    steps:
+      # ---------------------------------------------------------------------
+      # Checkout e autenticação
+      # ---------------------------------------------------------------------
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          install_components: gke-gcloud-auth-plugin
+
+      - name: Verify gcloud and GKE authentication plugin
+        run: |
+          gcloud --version
+          gke-gcloud-auth-plugin --version
+
+      # ---------------------------------------------------------------------
+      # Build e push da imagem
+      # ---------------------------------------------------------------------
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker \
+            "${REGION}-docker.pkg.dev" \
+            --quiet
+
+      - name: Build Airflow image
+        working-directory: ./airflow
+        run: |
+          IMAGE="${REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/airflow:${{ github.sha }}"
+
+          docker build \
+            --tag "$IMAGE" \
+            .
+
+          echo "AIRFLOW_IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Push Airflow image
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker push "$AIRFLOW_IMAGE"
+
+      # ---------------------------------------------------------------------
+      # Conexão com o GKE
+      # ---------------------------------------------------------------------
+
+      - name: Get GKE credentials
+        if: github.ref == 'refs/heads/main'
+        run: |
+          gcloud container clusters get-credentials \
+            "${GCP_PROJECT_ID}-airflow-gke" \
+            --region "$REGION" \
+            --project "$GCP_PROJECT_ID"
+
+      - name: Verify GKE connection
+        if: github.ref == 'refs/heads/main'
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      # ---------------------------------------------------------------------
+      # Namespace e Kubernetes Service Account
+      # ---------------------------------------------------------------------
+
+      - name: Apply namespace and Kubernetes Service Account
+        if: github.ref == 'refs/heads/main'
+        run: |
+          sed "s/PROJECT_ID/${GCP_PROJECT_ID}/g" \
+            k8s/namespace-sa.yaml |
+            kubectl apply -f -
+
+      - name: Verify namespace and Service Account
+        if: github.ref == 'refs/heads/main'
+        run: |
+          kubectl get namespace airflow
+
+          kubectl get serviceaccount airflow \
+            --namespace airflow \
+            --output yaml
+
+      # ---------------------------------------------------------------------
+      # ConfigMap
+      # ---------------------------------------------------------------------
+
+      - name: Create ConfigMap with pipeline variables
+        if: github.ref == 'refs/heads/main'
+        run: |
+          kubectl create configmap airflow-pipeline-config \
+            --namespace airflow \
+            --from-literal=GCP_PROJECT_ID="${GCP_PROJECT_ID}" \
+            --from-literal=GCS_BUCKET="${GCP_PROJECT_ID}-data-lake" \
+            --from-literal=BQ_DATASET="frankfurter_dev" \
+            --dry-run=client \
+            --output yaml |
+            kubectl apply -f -
+
+      - name: Verify pipeline ConfigMap
+        if: github.ref == 'refs/heads/main'
+        run: |
+          kubectl get configmap airflow-pipeline-config \
+            --namespace airflow
+
+      # ---------------------------------------------------------------------
+      # Helm
+      # ---------------------------------------------------------------------
+
+      - name: Add Airflow Helm repository
+        if: github.ref == 'refs/heads/main'
+        run: |
+          helm repo add apache-airflow https://airflow.apache.org
+          helm repo update
+
+      - name: Deploy Airflow via Helm
+        if: github.ref == 'refs/heads/main'
+        run: |
+          helm upgrade --install airflow apache-airflow/airflow \
+            --namespace airflow \
+            --create-namespace \
+            --values helm/airflow-values.yaml \
+            --set images.airflow.repository="${REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/airflow" \
+            --set images.airflow.tag="${{ github.sha }}" \
+            --timeout 20m0s \
+            --wait \
+            --debug
+
+      # ---------------------------------------------------------------------
+      # Diagnóstico
+      # ---------------------------------------------------------------------
+
+      - name: Diagnose Airflow deployment
+        if: always() && github.ref == 'refs/heads/main'
+        run: |
+          echo "===== Helm releases ====="
+          helm list \
+            --namespace airflow || true
+
+          echo "===== Helm status ====="
+          helm status airflow \
+            --namespace airflow || true
+
+          echo "===== Pods ====="
+          kubectl get pods \
+            --namespace airflow \
+            --output wide || true
+
+          echo "===== Deployments ====="
+          kubectl get deployments \
+            --namespace airflow || true
+
+          echo "===== StatefulSets ====="
+          kubectl get statefulsets \
+            --namespace airflow || true
+
+          echo "===== Jobs ====="
+          kubectl get jobs \
+            --namespace airflow || true
+
+          echo "===== PVCs ====="
+          kubectl get pvc \
+            --namespace airflow || true
+
+          echo "===== Services ====="
+          kubectl get services \
+            --namespace airflow || true
+
+          echo "===== Pod descriptions ====="
+          kubectl describe pods \
+            --namespace airflow || true
+
+          echo "===== Events ====="
+          kubectl get events \
+            --namespace airflow \
+            --sort-by='.lastTimestamp' || true
+
+      # ---------------------------------------------------------------------
+      # Verificação final
+      # ---------------------------------------------------------------------
+
+      - name: Verify Airflow deployment
+        if: success() && github.ref == 'refs/heads/main'
+        run: |
+          kubectl get pods \
+            --namespace airflow \
+            --output wide
+
+          kubectl get services \
+            --namespace airflow
+
+          helm status airflow \
+            --namespace airflow
