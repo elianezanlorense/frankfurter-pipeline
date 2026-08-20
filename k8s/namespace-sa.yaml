@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: airflow
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: airflow
+  namespace: airflow
+  annotations:
+    # Vincula esta KSA à Service Account do GCP criada pelo Terraform
+    # (airflow-gke-sa). Substitua PROJECT_ID pelo project_id real antes
+    # de aplicar (ou use envsubst/sed no CI, como no exemplo abaixo).
+    iam.gke.io/gcp-service-account: airflow-gke-sa@PROJECT_ID.iam.gserviceaccount.com
