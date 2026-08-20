@@ -25,48 +25,82 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
+      # Instala o gcloud e o plugin necessário para o kubectl
+      # autenticar no cluster GKE.
       - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
         with:
           project_id: ${{ vars.GCP_PROJECT_ID }}
+          install_components: gke-gcloud-auth-plugin
+
+      - name: Verify gcloud and GKE authentication plugin
+        run: |
+          gcloud --version
+          gke-gcloud-auth-plugin --version
 
       # ---------------------------------------------------------------------
-      # Build + push da imagem customizada do Airflow. Roda em toda execução
-      # na main (mesma lógica do dbt.yml), já que este job só é chamado
-      # depois do terraform (que já roda condicionado à main via seu próprio
-      # job) — mas o "needs: terraform" no main.yml não impede execução em
-      # outras branches, então mantemos essa etapa sempre, e o próprio
-      # deploy (helm) é que fica condicionado à main mais abaixo.
+      # Build e push da imagem customizada do Airflow
       # ---------------------------------------------------------------------
+
       - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+        run: |
+          gcloud auth configure-docker \
+            "${REGION}-docker.pkg.dev" \
+            --quiet
 
       - name: Build Airflow image
         working-directory: ./airflow
         run: |
           IMAGE="${REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/airflow:${{ github.sha }}"
+
           docker build -t "$IMAGE" .
+
           echo "AIRFLOW_IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
       - name: Push Airflow image
         if: github.ref == 'refs/heads/main'
-        run: docker push "$AIRFLOW_IMAGE"
+        run: |
+          docker push "$AIRFLOW_IMAGE"
 
       # ---------------------------------------------------------------------
-      # Deploy de verdade só acontece na main — em outras branches, o job
-      # para por aqui (só validou que a imagem builda sem erro).
+      # Deploy somente na main
       # ---------------------------------------------------------------------
+
       - name: Get GKE credentials
         if: github.ref == 'refs/heads/main'
         run: |
-          gcloud container clusters get-credentials "${GCP_PROJECT_ID}-airflow-gke" \
+          gcloud container clusters get-credentials \
+            "${GCP_PROJECT_ID}-airflow-gke" \
             --region "$REGION" \
             --project "$GCP_PROJECT_ID"
+
+      - name: Verify GKE connection
+        if: github.ref == 'refs/heads/main'
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      # ---------------------------------------------------------------------
+      # Namespace e Kubernetes Service Account
+      # ---------------------------------------------------------------------
 
       - name: Apply namespace and Kubernetes Service Account
         if: github.ref == 'refs/heads/main'
         run: |
-          sed "s/PROJECT_ID/${GCP_PROJECT_ID}/" k8s/namespace-sa.yaml | kubectl apply -f -
+          sed "s/PROJECT_ID/${GCP_PROJECT_ID}/g" \
+            k8s/namespace-sa.yaml |
+            kubectl apply -f -
+
+      - name: Verify namespace and Service Account
+        if: github.ref == 'refs/heads/main'
+        run: |
+          kubectl get namespace airflow
+          kubectl get serviceaccount airflow \
+            --namespace airflow
+
+      # ---------------------------------------------------------------------
+      # ConfigMap com variáveis utilizadas pelas DAGs
+      # ---------------------------------------------------------------------
 
       - name: Create ConfigMap with pipeline variables
         if: github.ref == 'refs/heads/main'
@@ -76,7 +110,13 @@ jobs:
             --from-literal=GCP_PROJECT_ID="${GCP_PROJECT_ID}" \
             --from-literal=GCS_BUCKET="${GCP_PROJECT_ID}-data-lake" \
             --from-literal=BQ_DATASET="frankfurter_dev" \
-            --dry-run=client -o yaml | kubectl apply -f -
+            --dry-run=client \
+            --output yaml |
+            kubectl apply -f -
+
+      # ---------------------------------------------------------------------
+      # Chave SSH utilizada pelo git-sync
+      # ---------------------------------------------------------------------
 
       - name: Create git-sync SSH secret
         if: github.ref == 'refs/heads/main'
@@ -84,9 +124,15 @@ jobs:
           kubectl create secret generic airflow-git-ssh \
             --namespace airflow \
             --from-literal=gitSshKey="${{ secrets.SSH_PRIVATE_KEY }}" \
-            --dry-run=client -o yaml | kubectl apply -f -
+            --dry-run=client \
+            --output yaml |
+            kubectl apply -f -
 
-      - name: Add Airflow Helm repo
+      # ---------------------------------------------------------------------
+      # Helm
+      # ---------------------------------------------------------------------
+
+      - name: Add Airflow Helm repository
         if: github.ref == 'refs/heads/main'
         run: |
           helm repo add apache-airflow https://airflow.apache.org
@@ -98,8 +144,17 @@ jobs:
           helm upgrade --install airflow apache-airflow/airflow \
             --namespace airflow \
             --create-namespace \
-            -f helm/airflow-values.yaml \
+            --values helm/airflow-values.yaml \
             --set images.airflow.repository="${REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/airflow" \
             --set images.airflow.tag="${{ github.sha }}" \
             --timeout 10m0s \
             --wait
+
+      - name: Verify Airflow deployment
+        if: github.ref == 'refs/heads/main'
+        run: |
+          kubectl get pods \
+            --namespace airflow
+
+          kubectl get services \
+            --namespace airflow
