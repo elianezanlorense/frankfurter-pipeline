@@ -1,17 +1,18 @@
 # values.yaml para o Helm chart oficial do Airflow.
-# https://airflow.apache.org/docs/helm-chart/stable/parameters-ref.html
-#
-# O repository e a tag da imagem são sobrescritos pelo workflow durante
-# o helm upgrade.
+# Configurado para a imagem apache/airflow:2.9.1-python3.11.
 
 # ---------------------------------------------------------------------------
-# Executor
+# Versão e executor
 # ---------------------------------------------------------------------------
+
+airflowVersion: "2.9.1"
 
 executor: KubernetesExecutor
 
 # ---------------------------------------------------------------------------
-# Imagem customizada do Airflow
+# Imagem
+#
+# repository e tag são sobrescritos pelo workflow.
 # ---------------------------------------------------------------------------
 
 images:
@@ -21,10 +22,7 @@ images:
     pullPolicy: IfNotPresent
 
 # ---------------------------------------------------------------------------
-# Migrations e criação do usuário
-#
-# Como o workflow utiliza "helm upgrade --wait", esses jobs são criados como
-# recursos normais do release, em vez de Helm hooks.
+# Migrations
 # ---------------------------------------------------------------------------
 
 createUserJob:
@@ -38,9 +36,6 @@ migrateDatabaseJob:
 
 # ---------------------------------------------------------------------------
 # Kubernetes Service Account
-#
-# A KSA airflow é criada pelo arquivo k8s/namespace-sa.yaml e vinculada à
-# Google Service Account airflow-gke-sa por Workload Identity.
 # ---------------------------------------------------------------------------
 
 serviceAccount:
@@ -49,12 +44,12 @@ serviceAccount:
 
 # ---------------------------------------------------------------------------
 # DAGs
-#
-# O repositório é público, portanto o git-sync utiliza HTTPS e não precisa
-# de chave SSH.
 # ---------------------------------------------------------------------------
 
 dags:
+  persistence:
+    enabled: false
+
   gitSync:
     enabled: true
     repo: https://github.com/elianezanlorense/frankfurter-pipeline.git
@@ -70,15 +65,31 @@ dags:
 postgresql:
   enabled: true
 
-# Redis não é necessário com KubernetesExecutor.
+# KubernetesExecutor não precisa de Redis.
 redis:
   enabled: false
 
 # ---------------------------------------------------------------------------
-# Variáveis utilizadas pelas DAGs
+# Persistência
 #
-# O chart valida "env" aceitando apenas name/value. Para utilizar valueFrom
-# com ConfigMap, é necessário usar extraEnv como bloco YAML templado.
+# Para este ambiente dev, os logs utilizam emptyDir. Isso evita a criação
+# de discos de 100 GiB que estava excedendo a quota SSD_TOTAL_GB.
+# ---------------------------------------------------------------------------
+
+logs:
+  persistence:
+    enabled: false
+
+workers:
+  persistence:
+    enabled: false
+
+triggerer:
+  persistence:
+    enabled: false
+
+# ---------------------------------------------------------------------------
+# Variáveis das DAGs
 # ---------------------------------------------------------------------------
 
 extraEnv: |
@@ -109,11 +120,13 @@ config:
     load_examples: "False"
 
 # ---------------------------------------------------------------------------
-# API Server / interface web
+# Interface web
 #
-# Nas versões atuais do Airflow, a interface é exposta pelo API Server.
+# Airflow 2 utiliza webserver. O recurso apiServer é do Airflow 3.
 # ---------------------------------------------------------------------------
 
-apiServer:
+webserver:
+  enabled: true
+
   service:
     type: LoadBalancer
