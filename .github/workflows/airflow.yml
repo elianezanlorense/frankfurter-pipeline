@@ -17,7 +17,7 @@ jobs:
 
     steps:
       # ---------------------------------------------------------------------
-      # Código e autenticação
+      # Checkout e autenticação
       # ---------------------------------------------------------------------
 
       - name: Checkout
@@ -41,7 +41,7 @@ jobs:
           gke-gcloud-auth-plugin --version
 
       # ---------------------------------------------------------------------
-      # Build da imagem do Airflow
+      # Build e push da imagem
       # ---------------------------------------------------------------------
 
       - name: Configure Docker for Artifact Registry
@@ -88,12 +88,28 @@ jobs:
       # Namespace e Kubernetes Service Account
       # ---------------------------------------------------------------------
 
-      - name: Apply namespace and Kubernetes Service Account
+      - name: Generate namespace and Service Account manifest
         if: github.ref == 'refs/heads/main'
         run: |
           sed "s/PROJECT_ID/${GCP_PROJECT_ID}/g" \
-            k8s/namespace-sa.yaml |
-            kubectl apply -f -
+            k8s/namespace-sa.yaml \
+            > /tmp/namespace-sa.yaml
+
+          echo "===== Generated manifest ====="
+          cat /tmp/namespace-sa.yaml
+
+      - name: Validate namespace and Service Account manifest
+        if: github.ref == 'refs/heads/main'
+        run: |
+          kubectl apply \
+            --filename /tmp/namespace-sa.yaml \
+            --dry-run=client
+
+      - name: Apply namespace and Kubernetes Service Account
+        if: github.ref == 'refs/heads/main'
+        run: |
+          kubectl apply \
+            --filename /tmp/namespace-sa.yaml
 
       - name: Verify namespace and Service Account
         if: github.ref == 'refs/heads/main'
@@ -108,43 +124,40 @@ jobs:
       # ConfigMap utilizada pelas DAGs
       # ---------------------------------------------------------------------
 
-      - name: Create ConfigMap with pipeline variables
+      - name: Generate pipeline ConfigMap
         if: github.ref == 'refs/heads/main'
         run: |
           kubectl create configmap airflow-pipeline-config \
             --namespace airflow \
-            --from-literal=GCP_PROJECT_ID="${GCP_PROJECT_ID}" \
-            --from-literal=GCS_BUCKET="${GCP_PROJECT_ID}-data-lake" \
-            --from-literal=BQ_DATASET="frankfurter_dev" \
+            --from-literal="GCP_PROJECT_ID=${GCP_PROJECT_ID}" \
+            --from-literal="GCS_BUCKET=${GCP_PROJECT_ID}-data-lake" \
+            --from-literal="BQ_DATASET=frankfurter_dev" \
             --dry-run=client \
-            --output yaml |
-            kubectl apply -f -
+            --output=yaml \
+            > /tmp/airflow-pipeline-config.yaml
+
+          echo "===== Generated ConfigMap ====="
+          cat /tmp/airflow-pipeline-config.yaml
+
+      - name: Validate pipeline ConfigMap
+        if: github.ref == 'refs/heads/main'
+        run: |
+          kubectl apply \
+            --filename /tmp/airflow-pipeline-config.yaml \
+            --dry-run=client
+
+      - name: Apply pipeline ConfigMap
+        if: github.ref == 'refs/heads/main'
+        run: |
+          kubectl apply \
+            --filename /tmp/airflow-pipeline-config.yaml
 
       - name: Verify pipeline ConfigMap
         if: github.ref == 'refs/heads/main'
         run: |
           kubectl get configmap airflow-pipeline-config \
-            --namespace airflow
-
-      # ---------------------------------------------------------------------
-      # Secret utilizado pelo git-sync
-      # ---------------------------------------------------------------------
-
-      - name: Create git-sync SSH secret
-        if: github.ref == 'refs/heads/main'
-        run: |
-          kubectl create secret generic airflow-git-ssh \
             --namespace airflow \
-            --from-literal=gitSshKey="${{ secrets.SSH_PRIVATE_KEY }}" \
-            --dry-run=client \
-            --output yaml |
-            kubectl apply -f -
-
-      - name: Verify git-sync SSH secret
-        if: github.ref == 'refs/heads/main'
-        run: |
-          kubectl get secret airflow-git-ssh \
-            --namespace airflow
+            --output yaml
 
       # ---------------------------------------------------------------------
       # Helm
@@ -169,7 +182,10 @@ jobs:
             --wait \
             --debug
 
-      # Executa mesmo quando o Helm falha para mostrar a causa do timeout.
+      # ---------------------------------------------------------------------
+      # Diagnóstico — executa mesmo se o Helm falhar
+      # ---------------------------------------------------------------------
+
       - name: Diagnose Airflow deployment
         if: always() && github.ref == 'refs/heads/main'
         run: |
@@ -210,12 +226,26 @@ jobs:
           kubectl describe pods \
             --namespace airflow || true
 
+          echo "===== Job descriptions ====="
+          kubectl describe jobs \
+            --namespace airflow || true
+
+          echo "===== Migration logs ====="
+          kubectl logs \
+            job/airflow-run-airflow-migrations \
+            --namespace airflow \
+            --all-containers \
+            --tail=300 || true
+
           echo "===== Recent events ====="
           kubectl get events \
             --namespace airflow \
             --sort-by='.lastTimestamp' || true
 
-      # Só executa quando todas as etapas anteriores obrigatórias tiveram sucesso.
+      # ---------------------------------------------------------------------
+      # Verificação final
+      # ---------------------------------------------------------------------
+
       - name: Verify Airflow deployment
         if: success() && github.ref == 'refs/heads/main'
         run: |
