@@ -45,23 +45,12 @@ postgresql:
     repository: bitnamilegacy/postgresql
 
 # Variáveis de ambiente que as DAGs esperam (frankfurter_dag.py lê
-# GCP_PROJECT_ID, GCS_BUCKET, BQ_DATASET via os.environ).
-env:
-  - name: GCP_PROJECT_ID
-    valueFrom:
-      configMapKeyRef:
-        name: airflow-pipeline-config
-        key: GCP_PROJECT_ID
-  - name: GCS_BUCKET
-    valueFrom:
-      configMapKeyRef:
-        name: airflow-pipeline-config
-        key: GCS_BUCKET
-  - name: BQ_DATASET
-    valueFrom:
-      configMapKeyRef:
-        name: airflow-pipeline-config
-        key: BQ_DATASET
+# GCP_PROJECT_ID, GCS_BUCKET, BQ_DATASET via os.environ). O chart não aceita
+# 'valueFrom' dentro de 'env' (schema só permite {name, value}); usamos
+# 'extraEnvFrom' para referenciar o ConfigMap inteiro de uma vez.
+extraEnvFrom: |
+  - configMapRef:
+      name: airflow-pipeline-config
 
 # Exemplos de DAG desligados (não precisamos deles poluindo a UI).
 config:
