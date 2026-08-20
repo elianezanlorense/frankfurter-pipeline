@@ -15,6 +15,9 @@ jobs:
       run:
         working-directory: ./dbt
 
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,3 +58,31 @@ jobs:
 
       - name: dbt compile
         run: dbt compile
+
+      # ---------------------------------------------------------------------
+      # Build + push da imagem Docker do dbt, usada pelo KubernetesPodOperator
+      # do Airflow. Só roda na main (mesma lógica do terraform apply): validar
+      # em qualquer branch, mas só publicar imagem de verdade após o merge.
+      # ---------------------------------------------------------------------
+      - name: Setup gcloud
+        if: github.ref == 'refs/heads/main'
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+
+      - name: Configure Docker for Artifact Registry
+        if: github.ref == 'refs/heads/main'
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
+
+      - name: Build dbt image
+        if: github.ref == 'refs/heads/main'
+        run: |
+          IMAGE="europe-west1-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/dbt:${{ github.sha }}"
+          docker build -t "$IMAGE" -t "europe-west1-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/dbt:latest" .
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Push dbt image
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker push "$IMAGE"
+          docker push "europe-west1-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/dbt:latest"

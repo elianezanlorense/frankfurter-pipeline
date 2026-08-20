@@ -45,9 +45,7 @@ jobs:
             -var="project_id=${GCP_PROJECT_ID}"
 
       - name: Terraform Apply
-        # TEMPORÁRIO: liberado também na branch "test" para validar o fluxo completo
-        # antes do merge para main. Remover "refs/heads/test" depois de validar.
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/test'
+        if: github.ref == 'refs/heads/main'
         run: |
           terraform apply \
             -auto-approve \
