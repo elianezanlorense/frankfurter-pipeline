@@ -4,45 +4,29 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
 
-if [[ $# -lt 1 || -z "$1" ]]; then
-  echo "Erro: informe o nome da branch." >&2
-  echo "Uso: $0 <nome-da-branch>" >&2
-  exit 1
-fi
-BRANCH_NAME="$1"
-
-add_alias() {
-  local alias_line="$1"
-
-  if ! grep -qxF "$alias_line" "$SHELL_RC" 2>/dev/null; then
-    echo "$alias_line" >> "$SHELL_RC"
-    echo "Alias adicionado: $alias_line"
-  else
-    echo "Alias já existe: $alias_line"
-  fi
-}
-
 cd "$PROJECT_DIR"
 
 echo "Projeto: $PROJECT_DIR"
 
-git status --short
-git fetch origin
-git switch main
-git pull --ff-only origin main
-
-if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
-  echo "Branch local '$BRANCH_NAME' já existe."
-  git switch "$BRANCH_NAME"
-elif git show-ref --verify --quiet "refs/remotes/origin/$BRANCH_NAME"; then
-  echo "Criando branch local a partir de origin/$BRANCH_NAME."
-  git switch --track "origin/$BRANCH_NAME"
+if ! command -v uv >/dev/null 2>&1; then
+  echo "Instalando uv..."
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  export PATH="$HOME/.local/bin:$PATH"
 else
-  echo "Criando branch '$BRANCH_NAME' a partir da main."
-  git switch -c "$BRANCH_NAME"
+  echo "uv já está instalado: $(uv --version)"
 fi
 
-echo "Branch atual: $(git branch --show-current)"
+if [[ ! -f "$PROJECT_DIR/pyproject.toml" ]]; then
+  uv init
+else
+  echo "pyproject.toml já existe; uv init não será executado."
+fi
+
+export UV_LINK_MODE=copy
+uv sync
+
+echo "Ambiente virtual criado/sincronizado."
+echo "Para ativar o ambiente, execute: source \"$PROJECT_DIR/.venv/bin/activate\""
 
 if [[ "${SHELL:-}" == *"zsh"* ]]; then
   SHELL_RC="$HOME/.zshrc"
@@ -52,16 +36,10 @@ fi
 
 touch "$SHELL_RC"
 
-add_alias "alias st='git status'"
-add_alias "alias sw='git switch'"
-add_alias "alias br='git branch'"
-add_alias "alias co='git checkout'"
-add_alias "alias cm='git commit'"
-add_alias "alias ps='git push'"
-add_alias "alias pl='git pull'"
-add_alias "alias ga='git add'"
-add_alias "alias lg='git log --oneline --graph --decorate --all'"
-
-echo "Aliases configurados em $SHELL_RC."
-echo "Branch pronta: $(git branch --show-current)"
-echo "Depois do script, execute: source \"$SHELL_RC\""
+ALIAS_LINE="alias va='source \"$PROJECT_DIR/.venv/bin/activate\"'"
+if ! grep -qxF "$ALIAS_LINE" "$SHELL_RC" 2>/dev/null; then
+  echo "$ALIAS_LINE" >> "$SHELL_RC"
+  echo "Alias adicionado: $ALIAS_LINE"
+else
+  echo "Alias já existe: $ALIAS_LINE"
+fi
