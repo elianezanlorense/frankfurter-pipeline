@@ -112,3 +112,46 @@ resource "google_service_account_iam_member" "airflow_gke_sa_workload_identity" 
   role                = "roles/iam.workloadIdentityUser"
   member              = "serviceAccount:${var.project_id}.svc.id.goog[airflow/airflow]"
 }
+
+# ---------------------------------------------------------------------------
+# Artifact Registry: repositório Docker para guardar a imagem do dbt usada
+# pelo KubernetesPodOperator do Airflow.
+# ---------------------------------------------------------------------------
+resource "google_project_service" "artifactregistry" {
+  project = var.project_id
+  service = "artifactregistry.googleapis.com"
+
+  disable_on_destroy = false
+}
+
+resource "google_artifact_registry_repository" "dbt_images" {
+  project       = var.project_id
+  location      = var.region
+  repository_id = "dbt-images"
+  description   = "Imagens Docker do dbt, usadas pelo KubernetesPodOperator do Airflow"
+  format        = "DOCKER"
+
+  depends_on = [google_project_service.artifactregistry]
+}
+
+# Permite que a Service Account do CI (github-actions-tf, criada no bootstrap)
+# faça push de imagens nesse repositório. A role já concedida a ela no
+# bootstrap (roles/storage.admin) não cobre Artifact Registry, então
+# adicionamos aqui a role específica.
+resource "google_artifact_registry_repository_iam_member" "github_actions_writer" {
+  project    = var.project_id
+  location   = google_artifact_registry_repository.dbt_images.location
+  repository = google_artifact_registry_repository.dbt_images.repository_id
+  role       = "roles/artifactregistry.writer"
+  member     = "serviceAccount:github-actions-tf@${var.project_id}.iam.gserviceaccount.com"
+}
+
+# Permite que os pods do GKE (via airflow_gke_sa, usada pelo
+# KubernetesPodOperator) façam pull da imagem.
+resource "google_artifact_registry_repository_iam_member" "airflow_gke_sa_reader" {
+  project    = var.project_id
+  location   = google_artifact_registry_repository.dbt_images.location
+  repository = google_artifact_registry_repository.dbt_images.repository_id
+  role       = "roles/artifactregistry.reader"
+  member     = "serviceAccount:${google_service_account.airflow_gke_sa.email}"
+}
