@@ -1,8 +1,13 @@
-# values.yaml para o Helm chart oficial do Airflow.
-# Compatível com apache/airflow:2.9.1-python3.11.
+# values.yaml para o Helm chart oficial do Apache Airflow.
+#
+# Imagem Airflow:
+#   apache/airflow:2.9.1-python3.11
+#
+# Helm chart:
+#   apache-airflow/airflow 1.16.0
 
 # ---------------------------------------------------------------------------
-# Versão e executor
+# Airflow
 # ---------------------------------------------------------------------------
 
 airflowVersion: "2.9.1"
@@ -10,9 +15,9 @@ airflowVersion: "2.9.1"
 executor: KubernetesExecutor
 
 # ---------------------------------------------------------------------------
-# Imagem
+# Imagem customizada
 #
-# O repository e a tag são sobrescritos pelo workflow.
+# Repository e tag são sobrescritos pelo workflow.
 # ---------------------------------------------------------------------------
 
 images:
@@ -21,37 +26,43 @@ images:
     tag: PLACEHOLDER
     pullPolicy: IfNotPresent
 
+  useDefaultImageForMigration: false
+
+  migrationsWaitTimeout: 300
+
 # ---------------------------------------------------------------------------
-# Migrations e usuário administrativo
-#
-# Como o workflow usa helm upgrade --wait, esses jobs são recursos normais
-# do release, em vez de Helm hooks.
+# Jobs de inicialização
 # ---------------------------------------------------------------------------
 
 createUserJob:
   useHelmHooks: false
   applyCustomEnv: false
 
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
 migrateDatabaseJob:
   enabled: true
   useHelmHooks: false
   applyCustomEnv: false
 
-# ---------------------------------------------------------------------------
-# Kubernetes Service Account
-#
-# Criada previamente por k8s/namespace-sa.yaml e vinculada à Google Service
-# Account airflow-gke-sa por Workload Identity.
-# ---------------------------------------------------------------------------
-
-serviceAccount:
-  create: false
-  name: airflow
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
 
 # ---------------------------------------------------------------------------
 # DAGs
 #
-# O repositório é público, portanto utiliza HTTPS e não precisa de Secret SSH.
+# Repositório público: utiliza HTTPS e não precisa de Secret SSH.
 # ---------------------------------------------------------------------------
 
 dags:
@@ -62,44 +73,180 @@ dags:
     enabled: true
     repo: https://github.com/elianezanlorense/frankfurter-pipeline.git
     branch: main
+    ref: main
     rev: HEAD
     subPath: airflow/dags
     period: 30s
 
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
 # ---------------------------------------------------------------------------
-# Banco de metadados
+# PostgreSQL
+#
+# A imagem originalmente usada pelo subchart foi removida do repositório
+# principal da Bitnami. O repositório bitnamilegacy é um fallback temporário.
 # ---------------------------------------------------------------------------
 
 postgresql:
   enabled: true
 
-# KubernetesExecutor não precisa de Redis.
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/postgresql
+    tag: 16.1.0-debian-11-r15
+    pullPolicy: IfNotPresent
+
+  primary:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+    persistence:
+      enabled: true
+      size: 8Gi
+
+# ---------------------------------------------------------------------------
+# Redis e StatsD
+#
+# Não são necessários para este ambiente com KubernetesExecutor.
+# ---------------------------------------------------------------------------
+
 redis:
   enabled: false
 
+statsd:
+  enabled: false
+
 # ---------------------------------------------------------------------------
-# Persistência
+# Logs
 #
-# Em desenvolvimento, utiliza volumes temporários para evitar consumo
-# desnecessário da quota regional de SSD.
+# Usa emptyDir para evitar volumes de logs de 100 GiB e estouro da quota SSD.
 # ---------------------------------------------------------------------------
 
 logs:
   persistence:
     enabled: false
 
-workers:
-  persistence:
+# ---------------------------------------------------------------------------
+# Scheduler
+# ---------------------------------------------------------------------------
+
+scheduler:
+  enabled: true
+  replicas: 1
+
+  strategy:
+    type: Recreate
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 750m
+      memory: 1Gi
+
+  waitForMigrations:
     enabled: false
 
+  serviceAccount:
+    create: false
+    name: airflow
+
+  logGroomerSidecar:
+    enabled: false
+
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+# ---------------------------------------------------------------------------
+# Webserver — Airflow 2
+# ---------------------------------------------------------------------------
+
+webserver:
+  enabled: true
+  replicas: 1
+
+  strategy:
+    type: Recreate
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 750m
+      memory: 1Gi
+
+  waitForMigrations:
+    enabled: false
+
+  serviceAccount:
+    create: false
+    name: airflow
+
+  service:
+    type: LoadBalancer
+
+# ---------------------------------------------------------------------------
+# Triggerer
+#
+# Desabilitado neste ambiente dev. Ele é necessário apenas para operadores
+# deferrable e não é necessário para a pipeline atual.
+# ---------------------------------------------------------------------------
+
 triggerer:
+  enabled: false
+
   persistence:
     enabled: false
 
 # ---------------------------------------------------------------------------
-# Variáveis utilizadas pelas DAGs
+# Workers criados dinamicamente pelo KubernetesExecutor
+# ---------------------------------------------------------------------------
+
+workers:
+  persistence:
+    enabled: false
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 1Gi
+
+  serviceAccount:
+    create: false
+    name: airflow
+
+# ---------------------------------------------------------------------------
+# DAG processor
 #
-# O ConfigMap airflow-pipeline-config é criado pelo workflow antes do Helm.
+# No Airflow 2.9.1, o scheduler pode processar as DAGs diretamente.
+# ---------------------------------------------------------------------------
+
+dagProcessor:
+  enabled: false
+
+# ---------------------------------------------------------------------------
+# Variáveis utilizadas pelas DAGs
 # ---------------------------------------------------------------------------
 
 extraEnv: |
@@ -129,14 +276,5 @@ config:
   core:
     load_examples: "False"
 
-# ---------------------------------------------------------------------------
-# Interface web
-#
-# Airflow 2.9.1 utiliza airflow webserver, não airflow api-server.
-# ---------------------------------------------------------------------------
-
-webserver:
-  enabled: true
-
-  service:
-    type: LoadBalancer
+  metrics:
+    statsd_on: "False"
