@@ -8,8 +8,12 @@ permissions:
   id-token: write
 
 jobs:
-  deploy-dags:
+  deploy-airflow:
     runs-on: ubuntu-latest
+
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: europe-west1
 
     steps:
       - name: Checkout
@@ -21,95 +25,81 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
-      - name: Install gcloud
+      - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
 
-      - name: Get VM IP
-        id: vm_ip
+      # ---------------------------------------------------------------------
+      # Build + push da imagem customizada do Airflow. Roda em toda execução
+      # na main (mesma lógica do dbt.yml), já que este job só é chamado
+      # depois do terraform (que já roda condicionado à main via seu próprio
+      # job) — mas o "needs: terraform" no main.yml não impede execução em
+      # outras branches, então mantemos essa etapa sempre, e o próprio
+      # deploy (helm) é que fica condicionado à main mais abaixo.
+      # ---------------------------------------------------------------------
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+
+      - name: Build Airflow image
+        working-directory: ./airflow
         run: |
-          IP=$(gcloud compute instances describe airflow-vm \
-              --zone=europe-west1-b \
-              --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
-          echo "ip=$IP" >> "$GITHUB_OUTPUT"
+          IMAGE="${REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/airflow:${{ github.sha }}"
+          docker build -t "$IMAGE" .
+          echo "AIRFLOW_IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
-      - name: Configure SSH key
+      - name: Push Airflow image
+        if: github.ref == 'refs/heads/main'
+        run: docker push "$AIRFLOW_IMAGE"
+
+      # ---------------------------------------------------------------------
+      # Deploy de verdade só acontece na main — em outras branches, o job
+      # para por aqui (só validou que a imagem builda sem erro).
+      # ---------------------------------------------------------------------
+      - name: Get GKE credentials
+        if: github.ref == 'refs/heads/main'
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/airflow_key
-          chmod 600 /tmp/airflow_key
+          gcloud container clusters get-credentials "${GCP_PROJECT_ID}-airflow-gke" \
+            --region "$REGION" \
+            --project "$GCP_PROJECT_ID"
 
-      - name: Wait for Airflow startup
+      - name: Apply namespace and Kubernetes Service Account
+        if: github.ref == 'refs/heads/main'
         run: |
-          for i in {1..10}; do
-            if ssh -o StrictHostKeyChecking=no \
-              -i /tmp/airflow_key \
-              airflow@${{ steps.vm_ip.outputs.ip }} \
-              "test -d /opt/airflow/dags"; then
-              echo "Airflow está pronto."
-              exit 0
-            fi
+          sed "s/PROJECT_ID/${GCP_PROJECT_ID}/" k8s/namespace-sa.yaml | kubectl apply -f -
 
-            echo "Aguardando startup script... tentativa $i/10"
-            sleep 30
-          done
-
-          echo "Airflow não ficou pronto dentro do tempo esperado."
-          exit 1
-
-      - name: Copy DAGs to VM
+      - name: Create ConfigMap with pipeline variables
+        if: github.ref == 'refs/heads/main'
         run: |
-          scp -o StrictHostKeyChecking=no \
-              -i /tmp/airflow_key \
-              airflow/dags/*.py \
-              airflow@${{ steps.vm_ip.outputs.ip }}:/opt/airflow/dags/
+          kubectl create configmap airflow-pipeline-config \
+            --namespace airflow \
+            --from-literal=GCP_PROJECT_ID="${GCP_PROJECT_ID}" \
+            --from-literal=GCS_BUCKET="${GCP_PROJECT_ID}-data-lake" \
+            --from-literal=BQ_DATASET="frankfurter_dev" \
+            --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Copy requirements to VM
+      - name: Create git-sync SSH secret
+        if: github.ref == 'refs/heads/main'
         run: |
-          scp -o StrictHostKeyChecking=no \
-              -i /tmp/airflow_key \
-              airflow/requirements.txt \
-              airflow@${{ steps.vm_ip.outputs.ip }}:/opt/airflow/requirements.txt
+          kubectl create secret generic airflow-git-ssh \
+            --namespace airflow \
+            --from-literal=gitSshKey="${{ secrets.SSH_PRIVATE_KEY }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Sync dbt project on VM
+      - name: Add Airflow Helm repo
+        if: github.ref == 'refs/heads/main'
         run: |
-          ssh -o StrictHostKeyChecking=no \
-              -i /tmp/airflow_key \
-              airflow@${{ steps.vm_ip.outputs.ip }} 'bash -s' <<'REMOTE'
-            if [ -d /opt/airflow/repo ]; then
-              cd /opt/airflow/repo && git pull
-            else
-              git clone https://github.com/elianezanlorense/frankfurter-pipeline.git /opt/airflow/repo
-            fi
-          REMOTE
+          helm repo add apache-airflow https://airflow.apache.org
+          helm repo update
 
-      - name: Install DAG dependencies on VM
+      - name: Deploy Airflow via Helm
+        if: github.ref == 'refs/heads/main'
         run: |
-          ssh -o StrictHostKeyChecking=no \
-              -i /tmp/airflow_key \
-              airflow@${{ steps.vm_ip.outputs.ip }} 'bash -s' <<'REMOTE'
-            source /opt/airflow/venv/bin/activate
-            pip install -r /opt/airflow/requirements.txt
-          REMOTE
-
-      - name: Wait and trigger DAG
-        run: |
-          ssh -o StrictHostKeyChecking=no \
-              -i /tmp/airflow_key \
-              airflow@${{ steps.vm_ip.outputs.ip }} 'bash -s' <<'REMOTE'
-            source /opt/airflow/airflow_env.sh
-            source /opt/airflow/venv/bin/activate
-
-            for i in {1..20}; do
-              if airflow dags list 2>/dev/null \
-                | grep -q "frankfurter_exchange_rates"; then
-                airflow dags trigger frankfurter_exchange_rates
-                exit 0
-              fi
-
-              echo "Aguardando DAG ser registrada... tentativa $i/20"
-              sleep 15
-            done
-
-            echo "DAG não foi registrada."
-            airflow dags list-import-errors
-            exit 1
-          REMOTE
+          helm upgrade --install airflow apache-airflow/airflow \
+            --namespace airflow \
+            --create-namespace \
+            -f helm/airflow-values.yaml \
+            --set images.airflow.repository="${REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/airflow" \
+            --set images.airflow.tag="${{ github.sha }}" \
+            --timeout 10m0s \
+            --wait
