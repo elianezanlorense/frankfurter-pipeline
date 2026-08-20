@@ -14,6 +14,7 @@ jobs:
     env:
       GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
       REGION: europe-west1
+      USE_GKE_GCLOUD_AUTH_PLUGIN: "True"
 
     steps:
       - name: Checkout
@@ -29,6 +30,9 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ vars.GCP_PROJECT_ID }}
+
+      - name: Install gke-gcloud-auth-plugin
+        run: gcloud components install gke-gcloud-auth-plugin --quiet
 
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
@@ -93,6 +97,11 @@ jobs:
             --wait \
             2>&1 | tee helm_output.txt
 
+      # -----------------------------------------------------------------
+      # Roda SEMPRE (mesmo se o Helm falhar) — captura o estado real do
+      # cluster no momento da falha, para não precisar caçar isso na mão
+      # como aconteceu hoje.
+      # -----------------------------------------------------------------
       - name: Collect cluster diagnostics
         if: always() && github.ref == 'refs/heads/main'
         run: |
