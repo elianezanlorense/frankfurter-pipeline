@@ -1,11 +1,13 @@
 terraform {
   required_version = ">= 1.0"
+
   required_providers {
     google = {
       source  = "hashicorp/google"
       version = "~> 5.0"
     }
   }
+
   backend "gcs" {
     prefix = "terraform/state"
   }
@@ -20,7 +22,10 @@ data "google_project" "project" {
   project_id = var.project_id
 }
 
-# --- DATA LAKE (STORAGE) ---
+# ---------------------------------------------------------------------------
+# Data Lake — Cloud Storage
+# ---------------------------------------------------------------------------
+
 resource "google_storage_bucket" "data_lake" {
   name                        = "${var.project_id}-data-lake"
   location                    = var.location
@@ -32,7 +37,10 @@ resource "google_storage_bucket" "data_lake" {
   }
 }
 
-# --- BIGQUERY ---
+# ---------------------------------------------------------------------------
+# BigQuery
+# ---------------------------------------------------------------------------
+
 resource "google_bigquery_dataset" "dataset" {
   dataset_id                 = var.bigquery_dataset
   project                    = var.project_id
@@ -41,23 +49,41 @@ resource "google_bigquery_dataset" "dataset" {
 }
 
 resource "google_bigquery_table" "exchange_rates" {
+  project    = var.project_id
   dataset_id = google_bigquery_dataset.dataset.dataset_id
   table_id   = "exchange_rates"
-  project    = var.project_id
 
   schema = jsonencode([
-    { name = "date", type = "DATE", mode = "REQUIRED" },
-    { name = "base_currency", type = "STRING", mode = "REQUIRED" },
-    { name = "target_currency", type = "STRING", mode = "REQUIRED" },
-    { name = "rate", type = "FLOAT", mode = "REQUIRED" }
+    {
+      name = "date"
+      type = "DATE"
+      mode = "REQUIRED"
+    },
+    {
+      name = "base_currency"
+      type = "STRING"
+      mode = "REQUIRED"
+    },
+    {
+      name = "target_currency"
+      type = "STRING"
+      mode = "REQUIRED"
+    },
+    {
+      name = "rate"
+      type = "FLOAT"
+      mode = "REQUIRED"
+    }
   ])
 
   deletion_protection = false
 }
 
 # ---------------------------------------------------------------------------
-# GKE Autopilot cluster para rodar Airflow (Helm) + dbt (KubernetesPodOperator)
+# Google Kubernetes Engine
+# Cluster Autopilot para Airflow e dbt com KubernetesPodOperator
 # ---------------------------------------------------------------------------
+
 resource "google_project_service" "container" {
   project = var.project_id
   service = "container.googleapis.com"
@@ -66,6 +92,7 @@ resource "google_project_service" "container" {
 }
 
 resource "google_container_cluster" "airflow_gke" {
+  project  = var.project_id
   name     = "${var.project_id}-airflow-gke"
   location = var.region
 
@@ -80,8 +107,15 @@ resource "google_container_cluster" "airflow_gke" {
 
   deletion_protection = false
 
-  depends_on = [google_project_service.container]
+  # A API do GKE precisa estar habilitada antes da criação do cluster.
+  depends_on = [
+    google_project_service.container
+  ]
 }
+
+# ---------------------------------------------------------------------------
+# Service Account utilizada pelo Airflow no GKE
+# ---------------------------------------------------------------------------
 
 resource "google_service_account" "airflow_gke_sa" {
   project      = var.project_id
@@ -107,16 +141,25 @@ resource "google_project_iam_member" "airflow_gke_sa_storage" {
   member  = "serviceAccount:${google_service_account.airflow_gke_sa.email}"
 }
 
+# Autoriza a Kubernetes Service Account airflow/airflow a utilizar
+# a Google Service Account airflow-gke-sa.
 resource "google_service_account_iam_member" "airflow_gke_sa_workload_identity" {
   service_account_id = google_service_account.airflow_gke_sa.name
-  role                = "roles/iam.workloadIdentityUser"
-  member              = "serviceAccount:${var.project_id}.svc.id.goog[airflow/airflow]"
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "serviceAccount:${var.project_id}.svc.id.goog[airflow/airflow]"
+
+  # O pool PROJECT_ID.svc.id.goog só existe depois que o cluster GKE
+  # com Workload Identity estiver completamente criado.
+  depends_on = [
+    google_container_cluster.airflow_gke
+  ]
 }
 
 # ---------------------------------------------------------------------------
-# Artifact Registry: repositório Docker para guardar a imagem do dbt usada
-# pelo KubernetesPodOperator do Airflow.
+# Artifact Registry
+# Repositório Docker para a imagem do dbt
 # ---------------------------------------------------------------------------
+
 resource "google_project_service" "artifactregistry" {
   project = var.project_id
   service = "artifactregistry.googleapis.com"
@@ -131,13 +174,13 @@ resource "google_artifact_registry_repository" "dbt_images" {
   description   = "Imagens Docker do dbt, usadas pelo KubernetesPodOperator do Airflow"
   format        = "DOCKER"
 
-  depends_on = [google_project_service.artifactregistry]
+  # A API precisa estar habilitada antes da criação do repositório.
+  depends_on = [
+    google_project_service.artifactregistry
+  ]
 }
 
-# Permite que a Service Account do CI (github-actions-tf, criada no bootstrap)
-# faça push de imagens nesse repositório. A role já concedida a ela no
-# bootstrap (roles/storage.admin) não cobre Artifact Registry, então
-# adicionamos aqui a role específica.
+# Permite que a Service Account do GitHub Actions faça push das imagens.
 resource "google_artifact_registry_repository_iam_member" "github_actions_writer" {
   project    = var.project_id
   location   = google_artifact_registry_repository.dbt_images.location
@@ -146,8 +189,7 @@ resource "google_artifact_registry_repository_iam_member" "github_actions_writer
   member     = "serviceAccount:github-actions-tf@${var.project_id}.iam.gserviceaccount.com"
 }
 
-# Permite que os pods do GKE (via airflow_gke_sa, usada pelo
-# KubernetesPodOperator) façam pull da imagem.
+# Permite que os pods do GKE façam pull da imagem do dbt.
 resource "google_artifact_registry_repository_iam_member" "airflow_gke_sa_reader" {
   project    = var.project_id
   location   = google_artifact_registry_repository.dbt_images.location
