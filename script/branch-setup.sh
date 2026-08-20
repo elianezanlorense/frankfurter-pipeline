@@ -3,7 +3,13 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
-BRANCH_NAME="${1:-test}"
+
+if [[ $# -lt 1 || -z "$1" ]]; then
+  echo "Erro: informe o nome da branch." >&2
+  echo "Uso: $0 <nome-da-branch>" >&2
+  exit 1
+fi
+BRANCH_NAME="$1"
 
 add_alias() {
   local alias_line="$1"
