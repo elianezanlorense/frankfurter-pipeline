@@ -1,5 +1,5 @@
 # values.yaml para o Helm chart oficial do Airflow.
-# Configurado para a imagem apache/airflow:2.9.1-python3.11.
+# Compatível com apache/airflow:2.9.1-python3.11.
 
 # ---------------------------------------------------------------------------
 # Versão e executor
@@ -12,7 +12,7 @@ executor: KubernetesExecutor
 # ---------------------------------------------------------------------------
 # Imagem
 #
-# repository e tag são sobrescritos pelo workflow.
+# O repository e a tag são sobrescritos pelo workflow.
 # ---------------------------------------------------------------------------
 
 images:
@@ -22,7 +22,10 @@ images:
     pullPolicy: IfNotPresent
 
 # ---------------------------------------------------------------------------
-# Migrations
+# Migrations e usuário administrativo
+#
+# Como o workflow usa helm upgrade --wait, esses jobs são recursos normais
+# do release, em vez de Helm hooks.
 # ---------------------------------------------------------------------------
 
 createUserJob:
@@ -36,6 +39,9 @@ migrateDatabaseJob:
 
 # ---------------------------------------------------------------------------
 # Kubernetes Service Account
+#
+# Criada previamente por k8s/namespace-sa.yaml e vinculada à Google Service
+# Account airflow-gke-sa por Workload Identity.
 # ---------------------------------------------------------------------------
 
 serviceAccount:
@@ -44,6 +50,8 @@ serviceAccount:
 
 # ---------------------------------------------------------------------------
 # DAGs
+#
+# O repositório é público, portanto utiliza HTTPS e não precisa de Secret SSH.
 # ---------------------------------------------------------------------------
 
 dags:
@@ -72,8 +80,8 @@ redis:
 # ---------------------------------------------------------------------------
 # Persistência
 #
-# Para este ambiente dev, os logs utilizam emptyDir. Isso evita a criação
-# de discos de 100 GiB que estava excedendo a quota SSD_TOTAL_GB.
+# Em desenvolvimento, utiliza volumes temporários para evitar consumo
+# desnecessário da quota regional de SSD.
 # ---------------------------------------------------------------------------
 
 logs:
@@ -89,7 +97,9 @@ triggerer:
     enabled: false
 
 # ---------------------------------------------------------------------------
-# Variáveis das DAGs
+# Variáveis utilizadas pelas DAGs
+#
+# O ConfigMap airflow-pipeline-config é criado pelo workflow antes do Helm.
 # ---------------------------------------------------------------------------
 
 extraEnv: |
@@ -122,7 +132,7 @@ config:
 # ---------------------------------------------------------------------------
 # Interface web
 #
-# Airflow 2 utiliza webserver. O recurso apiServer é do Airflow 3.
+# Airflow 2.9.1 utiliza airflow webserver, não airflow api-server.
 # ---------------------------------------------------------------------------
 
 webserver:

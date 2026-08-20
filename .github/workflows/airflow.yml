@@ -14,6 +14,7 @@ jobs:
     env:
       GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
       REGION: europe-west1
+      AIRFLOW_CHART_VERSION: "1.16.0"
 
     steps:
       # ---------------------------------------------------------------------
@@ -121,7 +122,7 @@ jobs:
             --output yaml
 
       # ---------------------------------------------------------------------
-      # ConfigMap utilizada pelas DAGs
+      # ConfigMap
       # ---------------------------------------------------------------------
 
       - name: Generate pipeline ConfigMap
@@ -169,10 +170,19 @@ jobs:
           helm repo add apache-airflow https://airflow.apache.org
           helm repo update
 
+      - name: Verify selected Airflow chart
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "Selected chart version: ${AIRFLOW_CHART_VERSION}"
+
+          helm show chart apache-airflow/airflow \
+            --version "${AIRFLOW_CHART_VERSION}"
+
       - name: Deploy Airflow via Helm
         if: github.ref == 'refs/heads/main'
         run: |
           helm upgrade --install airflow apache-airflow/airflow \
+            --version "${AIRFLOW_CHART_VERSION}" \
             --namespace airflow \
             --create-namespace \
             --values helm/airflow-values.yaml \
@@ -258,6 +268,6 @@ jobs:
           kubectl get services \
             --namespace airflow
 
-          echo "===== Airflow Helm release ====="
+          echo "===== Helm release ====="
           helm status airflow \
             --namespace airflow
