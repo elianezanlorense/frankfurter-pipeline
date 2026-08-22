@@ -37,14 +37,6 @@ jobs:
 
       - name: Discover GCP resource locations
         run: |
-          ARTIFACT_REGION="$(
-            gcloud artifacts repositories list \
-              --project "$GCP_PROJECT_ID" \
-              --filter="name:dbt-images" \
-              --format="value(location)" \
-              --limit=1
-          )"
-
           GKE_LOCATION="$(
             gcloud container clusters list \
               --project "$GCP_PROJECT_ID" \
@@ -53,21 +45,22 @@ jobs:
               --limit=1
           )"
 
-          if [[ -z "$ARTIFACT_REGION" ]]; then
-            echo "Could not discover the Artifact Registry location." >&2
-            exit 1
-          fi
-
           if [[ -z "$GKE_LOCATION" ]]; then
             echo "Could not discover the GKE cluster location." >&2
             exit 1
           fi
 
-          echo "ARTIFACT_REGION=$ARTIFACT_REGION" >> "$GITHUB_ENV"
-          echo "GKE_LOCATION=$GKE_LOCATION" >> "$GITHUB_ENV"
+          if [[ "$GKE_LOCATION" =~ -[a-z]$ ]]; then
+            ARTIFACT_REGION="${GKE_LOCATION%-*}"
+          else
+            ARTIFACT_REGION="$GKE_LOCATION"
+          fi
 
-          echo "Artifact Registry region: $ARTIFACT_REGION"
+          echo "GKE_LOCATION=$GKE_LOCATION" >> "$GITHUB_ENV"
+          echo "ARTIFACT_REGION=$ARTIFACT_REGION" >> "$GITHUB_ENV"
+
           echo "GKE location: $GKE_LOCATION"
+          echo "Artifact Registry region: $ARTIFACT_REGION"
 
       - name: Install gke-gcloud-auth-plugin
         run: |
@@ -178,6 +171,7 @@ jobs:
             --from-literal=GCP_PROJECT_ID="${GCP_PROJECT_ID}" \
             --from-literal=GCS_BUCKET="${GCP_PROJECT_ID}-data-lake" \
             --from-literal=BQ_DATASET="frankfurter_dev" \
+            --from-literal=ARTIFACT_REGION="${ARTIFACT_REGION}" \
             --dry-run=client \
             -o yaml |
             kubectl apply -f -
@@ -232,6 +226,18 @@ jobs:
           {
             echo "=== PODS ==="
             kubectl get pods -n airflow -o wide || true
+
+            echo ""
+            echo "=== SERVICES ==="
+            kubectl get services -n airflow || true
+
+            echo ""
+            echo "=== DEPLOYMENTS ==="
+            kubectl get deployments -n airflow || true
+
+            echo ""
+            echo "=== STATEFULSETS ==="
+            kubectl get statefulsets -n airflow || true
 
             echo ""
             echo "=== JOBS ==="
