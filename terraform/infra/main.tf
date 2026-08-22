@@ -102,7 +102,7 @@ resource "google_project_service" "container" {
 resource "google_container_cluster" "airflow_gke" {
   project  = var.project_id
   name     = "${var.project_id}-airflow-gke"
-  location = var.region
+  location = var.zone
 
   remove_default_node_pool = true
   initial_node_count       = 1
@@ -125,7 +125,7 @@ resource "google_container_cluster" "airflow_gke" {
 resource "google_container_node_pool" "airflow_gke_nodes" {
   name     = "airflow-pool"
   cluster  = google_container_cluster.airflow_gke.name
-  location = var.region
+  location = var.zone
   project  = var.project_id
 
   # 2 nodes x e2-medium (2 vCPUs cada) = 4 vCPUs no mínimo, com folga
