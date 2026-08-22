@@ -82,6 +82,37 @@ jobs:
             --region "$REGION" \
             --project "$GCP_PROJECT_ID"
 
+      # ---------------------------------------------------------------------
+      # Cluster é GKE Standard (não Autopilot): o node pool (airflow-pool)
+      # é um recurso separado que pode ainda estar provisionando logo após
+      # o terraform apply criar o cluster. Sem essa espera, o primeiro
+      # deploy depois de criar/recriar o cluster pode falhar porque não há
+      # nenhum node pronto para agendar os pods do Airflow.
+      # ---------------------------------------------------------------------
+      - name: Wait for node pool to be ready
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "==> Aguardando node pool 'airflow-pool' ficar RUNNING..."
+          for i in $(seq 1 30); do
+            STATUS="$(
+              gcloud container node-pools describe airflow-pool \
+                --cluster "${GCP_PROJECT_ID}-airflow-gke" \
+                --region "$REGION" \
+                --project "$GCP_PROJECT_ID" \
+                --format="value(status)" 2>/dev/null || true
+            )"
+            echo "Tentativa $i/30: status = ${STATUS:-desconhecido}"
+            if [[ "$STATUS" == "RUNNING" ]]; then
+              break
+            fi
+            sleep 20
+          done
+
+          echo "==> Aguardando ao menos 1 node Ready no cluster..."
+          kubectl wait --for=condition=Ready nodes --all --timeout=180s || true
+
+          kubectl get nodes
+
       - name: Apply namespace and Kubernetes Service Account
         if: github.ref == 'refs/heads/main'
         run: |
