@@ -2,6 +2,40 @@
 
 ##  Objective
 
+gcloud config get-value project
+ cluster name:gcloud container clusters list \
+  --region europe-west1 \
+  --project zoocamp-project-914584
+connect with cluster:
+  gcloud container clusters get-credentials \
+  zoocamp-project-914584-airflow-gke \
+  --region europe-west1 \
+  --project zoocamp-project-914584
+
+  
+
+K8s acess:
+kubectl get nodes
+
+# Confirm the current cluster/context
+kubectl config current-context
+
+# List namespaces
+kubectl get namespaces
+
+# View all running workloads
+kubectl get pods --all-namespaces
+
+# Check Airflow resources
+kubectl get pods,services,deployments,statefulsets --all-namespaces | grep -i airflow
+
+kubectl get jobs,pods -n airflow
+
+POD=$(kubectl get pods -n airflow -o name | grep airflow-scheduler | head -n 1)
+echo "$POD"
+
+kubectl get "$POD" -n airflow -o jsonpath='{.spec.initContainers[*].name}{"\n"}'
+
 This project builds an **end-to-end batch data pipeline** using exchange rate data from the Frankfurter API.
 
 It covers:

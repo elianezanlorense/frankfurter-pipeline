@@ -3,6 +3,7 @@
 #
 # image.repository e image.tag são sobrescritos via --set no CI, apontando
 # para a imagem que acabou de ser buildada/publicada no Artifact Registry.
+
 executor: KubernetesExecutor
 
 images:
@@ -13,14 +14,13 @@ images:
 
 # Usa a KSA "airflow" que o Terraform + k8s-namespace-sa.yaml já criaram e
 # vincularam via Workload Identity à service account do GCP (airflow-gke-sa).
-# create: false porque a KSA já existe (não deixamos o Helm criar outra).
+# create: false porque a KSA já existe.
 serviceAccount:
   create: false
   name: airflow
 
-# DAGs vêm do próprio repositório via git-sync, puxando só a subpasta
-# airflow/dags a cada poucos segundos — evita precisar rebuildar a imagem
-# toda vez que uma DAG muda.
+# DAGs vêm do próprio repositório via git-sync, puxando somente a subpasta
+# airflow/dags. Isso evita reconstruir a imagem quando uma DAG é alterada.
 dags:
   gitSync:
     enabled: true
@@ -30,35 +30,33 @@ dags:
     sshKeySecret: airflow-git-ssh
     period: 30s
 
-# Banco de metadados: usa o Postgres embutido no próprio chart (padrão).
-# Suficiente para esse volume de uso; se crescer, migrar para Cloud SQL.
-#
-# NOTA: a Bitnami (dona da imagem padrão do subchart de postgresql) moveu a
-# maior parte do catálogo público para o repositório "bitnamilegacy" a
-# partir de 2025 — a tag antiga que o chart do Airflow referenciava por
-# padrão (bitnami/postgresql) some do ar e causa ImagePullBackOff. Apontamos
-# explicitamente para bitnamilegacy para continuar funcionando sem custo.
+# Banco de metadados: usa o PostgreSQL embutido no chart.
+# Para um ambiente maior, considerar migração para Cloud SQL.
 postgresql:
   enabled: true
   image:
     registry: docker.io
     repository: bitnamilegacy/postgresql
 
-# Variáveis de ambiente que as DAGs esperam (frankfurter_dag.py lê
-# GCP_PROJECT_ID, GCS_BUCKET, BQ_DATASET via os.environ). O chart não aceita
-# 'valueFrom' dentro de 'env' (schema só permite {name, value}); usamos
-# 'extraEnvFrom' para referenciar o ConfigMap inteiro de uma vez.
+# O chart cria por padrão um volume de 100 GiB para o triggerer.
+# Para este projeto, 10 GiB são suficientes e evitam exceder a quota SSD.
+triggerer:
+  persistence:
+    enabled: true
+    size: 10Gi
+
+# Variáveis de ambiente utilizadas pelas DAGs.
+# O ConfigMap deve conter GCP_PROJECT_ID, GCS_BUCKET e BQ_DATASET.
 extraEnvFrom: |
   - configMapRef:
       name: airflow-pipeline-config
 
-# Exemplos de DAG desligados (não precisamos deles poluindo a UI).
+# Desativa as DAGs de exemplo.
 config:
   core:
-    load_examples: 'False'
+    load_examples: "False"
 
-# Webserver exposto via LoadBalancer para acesso simples à UI. Ajustar para
-# Ingress + TLS depois, se quiser algo mais robusto/seguro.
+# Expõe a interface do Airflow por meio de um LoadBalancer.
 webserver:
   service:
     type: LoadBalancer
