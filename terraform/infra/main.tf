@@ -81,7 +81,15 @@ resource "google_bigquery_table" "exchange_rates" {
 
 # ---------------------------------------------------------------------------
 # Google Kubernetes Engine
-# Cluster Autopilot para Airflow e dbt com KubernetesPodOperator
+# Cluster Standard (não Autopilot) para Airflow e dbt com
+# KubernetesPodOperator.
+#
+# NOTA: trocamos de Autopilot para Standard porque no free tier a cota de
+# CPU costuma ser baixa (ex: 12 vCPUs no total, globalmente via
+# CPUS_ALL_REGIONS) e não é aprovada para aumento automaticamente. O
+# Autopilot escolhe nodes grandes por padrão (ex: e2-standard-8 = 8 vCPUs
+# cada), estourando essa cota já com 2 nodes. No Standard controlamos o
+# tamanho exato via node pool próprio, abaixo.
 # ---------------------------------------------------------------------------
 
 resource "google_project_service" "container" {
@@ -96,7 +104,8 @@ resource "google_container_cluster" "airflow_gke" {
   name     = "${var.project_id}-airflow-gke"
   location = var.region
 
-  enable_autopilot = true
+  remove_default_node_pool = true
+  initial_node_count       = 1
 
   workload_identity_config {
     workload_pool = "${var.project_id}.svc.id.goog"
@@ -111,6 +120,45 @@ resource "google_container_cluster" "airflow_gke" {
   depends_on = [
     google_project_service.container
   ]
+}
+
+resource "google_container_node_pool" "airflow_gke_nodes" {
+  name     = "airflow-pool"
+  cluster  = google_container_cluster.airflow_gke.name
+  location = var.region
+  project  = var.project_id
+
+  # 2 nodes x e2-medium (2 vCPUs cada) = 4 vCPUs no mínimo, com folga
+  # confortável dentro da cota de 12 vCPUs do free tier. Ajustar
+  # node_count/machine_type depois de solicitar aumento de cota, se
+  # necessário.
+  node_count = 2
+
+  node_config {
+    machine_type = "e2-medium"
+    disk_size_gb = 30
+    disk_type    = "pd-standard"
+
+    # necessário para os pods usarem Workload Identity (autenticação sem
+    # chave JSON) neste node pool
+    workload_metadata_config {
+      mode = "GKE_METADATA"
+    }
+
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform",
+    ]
+  }
+
+  autoscaling {
+    min_node_count = 1
+    max_node_count = 3
+  }
+
+  management {
+    auto_repair  = true
+    auto_upgrade = true
+  }
 }
 
 # ---------------------------------------------------------------------------
