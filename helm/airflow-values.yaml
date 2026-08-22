@@ -1,10 +1,12 @@
-# values.yaml para o Helm chart oficial do Airflow (apache-airflow/airflow).
-# https://airflow.apache.org/docs/helm-chart/stable/parameters-ref.html
+# values.yaml para o Helm chart oficial do Airflow.
+# Este arquivo usa o chart 1.19.0, compatível com Airflow 2.9.1.
+# https://airflow.apache.org/docs/helm-chart/1.19.0/parameters-ref.html
 #
 # image.repository e image.tag são sobrescritos via --set no CI, apontando
-# para a imagem que acabou de ser buildada/publicada no Artifact Registry.
+# para a imagem construída e publicada no Artifact Registry.
 
 executor: KubernetesExecutor
+airflowVersion: "2.9.1"
 
 images:
   airflow:
@@ -12,15 +14,14 @@ images:
     tag: PLACEHOLDER        # sobrescrito via --set no CI
     pullPolicy: IfNotPresent
 
-# Usa a KSA "airflow" que o Terraform + k8s-namespace-sa.yaml já criaram e
-# vincularam via Workload Identity à service account do GCP (airflow-gke-sa).
-# create: false porque a KSA já existe.
+# Usa a KSA "airflow" que o Terraform e os manifests Kubernetes já criaram
+# e vincularam via Workload Identity à service account do Google Cloud.
 serviceAccount:
   create: false
   name: airflow
 
-# DAGs vêm do próprio repositório via git-sync, puxando somente a subpasta
-# airflow/dags. Isso evita reconstruir a imagem quando uma DAG é alterada.
+# As DAGs vêm do próprio repositório por meio do git-sync.
+# Somente a subpasta airflow/dags é utilizada.
 dags:
   gitSync:
     enabled: true
@@ -30,23 +31,23 @@ dags:
     sshKeySecret: airflow-git-ssh
     period: 30s
 
-# Banco de metadados: usa o PostgreSQL embutido no chart.
-# Para um ambiente maior, considerar migração para Cloud SQL.
+# Banco de metadados PostgreSQL incorporado ao chart.
+# Adequado para desenvolvimento e projetos pequenos.
 postgresql:
   enabled: true
   image:
     registry: docker.io
     repository: bitnamilegacy/postgresql
 
-# O chart cria por padrão um volume de 100 GiB para o triggerer.
-# Para este projeto, 10 GiB são suficientes e evitam exceder a quota SSD.
+# O valor padrão do chart é 100 GiB.
+# Para este projeto, 10 GiB são suficientes para os logs do triggerer.
 triggerer:
   persistence:
     enabled: true
     size: 10Gi
 
 # Variáveis de ambiente utilizadas pelas DAGs.
-# O ConfigMap deve conter GCP_PROJECT_ID, GCS_BUCKET e BQ_DATASET.
+# O ConfigMap deve fornecer GCP_PROJECT_ID, GCS_BUCKET e BQ_DATASET.
 extraEnvFrom: |
   - configMapRef:
       name: airflow-pipeline-config
@@ -56,7 +57,7 @@ config:
   core:
     load_examples: "False"
 
-# Expõe a interface do Airflow por meio de um LoadBalancer.
+# Expõe a interface web do Airflow por meio de um LoadBalancer.
 webserver:
   service:
     type: LoadBalancer
