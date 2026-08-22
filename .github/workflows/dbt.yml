@@ -1,4 +1,5 @@
 # .github/workflows/dbt.yml
+
 name: dbt CI
 
 on:
@@ -6,11 +7,12 @@ on:
 
 permissions:
   contents: read
-  id-token: write   # obrigatório para o WIF gerar o token OIDC
+  id-token: write
 
 jobs:
   dbt:
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: ./dbt
@@ -25,10 +27,11 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install dbt
-        run: pip install dbt-bigquery
+        run: |
+          pip install dbt-bigquery
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -40,6 +43,7 @@ jobs:
       - name: Setup dbt profiles
         run: |
           mkdir -p ~/.dbt
+
           cat > ~/.dbt/profiles.yml << EOF
           zoocamp_project:
             target: dev
@@ -47,42 +51,81 @@ jobs:
               dev:
                 type: bigquery
                 method: oauth
-                project: ${{ vars.GCP_PROJECT_ID }}
+                project: ${GCP_PROJECT_ID}
                 dataset: frankfurter_dev
                 location: EU
                 threads: 4
           EOF
 
-      - name: dbt deps
-        run: dbt deps
+      - name: Install dbt dependencies
+        run: |
+          dbt deps
 
-      - name: dbt compile
-        run: dbt compile
+      - name: Compile dbt project
+        run: |
+          dbt compile
 
-      # ---------------------------------------------------------------------
-      # Build + push da imagem Docker do dbt, usada pelo KubernetesPodOperator
-      # do Airflow. Só roda na main (mesma lógica do terraform apply): validar
-      # em qualquer branch, mas só publicar imagem de verdade após o merge.
-      # ---------------------------------------------------------------------
       - name: Setup gcloud
         if: github.ref == 'refs/heads/main'
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ vars.GCP_PROJECT_ID }}
 
+      - name: Discover Artifact Registry location
+        if: github.ref == 'refs/heads/main'
+        run: |
+          ARTIFACT_REGION="$(
+            gcloud artifacts repositories list \
+              --project "$GCP_PROJECT_ID" \
+              --filter="name:dbt-images" \
+              --format="value(location)" \
+              --limit=1
+          )"
+
+          if [[ -z "$ARTIFACT_REGION" ]]; then
+            echo "Could not discover the Artifact Registry location." >&2
+            exit 1
+          fi
+
+          echo "ARTIFACT_REGION=$ARTIFACT_REGION" >> "$GITHUB_ENV"
+          echo "Artifact Registry region: $ARTIFACT_REGION"
+
       - name: Configure Docker for Artifact Registry
         if: github.ref == 'refs/heads/main'
-        run: gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
+        run: |
+          gcloud auth configure-docker \
+            "${ARTIFACT_REGION}-docker.pkg.dev" \
+            --quiet
 
       - name: Build dbt image
         if: github.ref == 'refs/heads/main'
         run: |
-          IMAGE="europe-west1-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/dbt:${{ github.sha }}"
-          docker build -t "$IMAGE" -t "europe-west1-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/dbt:latest" .
-          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+          IMAGE_BASE="${ARTIFACT_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/dbt"
+          IMAGE_SHA="${IMAGE_BASE}:${{ github.sha }}"
+          IMAGE_LATEST="${IMAGE_BASE}:latest"
+
+          docker build \
+            -t "$IMAGE_SHA" \
+            -t "$IMAGE_LATEST" \
+            .
+
+          echo "DBT_IMAGE_SHA=$IMAGE_SHA" >> "$GITHUB_ENV"
+          echo "DBT_IMAGE_LATEST=$IMAGE_LATEST" >> "$GITHUB_ENV"
 
       - name: Push dbt image
         if: github.ref == 'refs/heads/main'
         run: |
-          docker push "$IMAGE"
-          docker push "europe-west1-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/dbt:latest"
+          docker push "$DBT_IMAGE_SHA"
+          docker push "$DBT_IMAGE_LATEST"
+
+      - name: Write dbt summary
+        if: always()
+        run: |
+          {
+            echo "## dbt CI — summary"
+            echo ""
+            echo "**Project:** \`${GCP_PROJECT_ID}\`"
+            echo "**Branch:** \`${{ github.ref_name }}\`"
+            echo "**Artifact region:** \`${ARTIFACT_REGION:-not discovered}\`"
+            echo "**Image:** \`${DBT_IMAGE_SHA:-not published}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
