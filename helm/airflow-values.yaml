@@ -1,27 +1,28 @@
-# values.yaml para o Helm chart oficial do Airflow.
-# Este arquivo usa o chart 1.19.0, compatível com Airflow 2.9.1.
-# https://airflow.apache.org/docs/helm-chart/1.19.0/parameters-ref.html
+# values.yaml para o Helm chart oficial do Apache Airflow.
 #
-# image.repository e image.tag são sobrescritos via --set no CI, apontando
-# para a imagem construída e publicada no Artifact Registry.
+# Compatibilidade:
+#   Apache Airflow: 2.9.1
+#   Helm chart:     1.19.0
+#
+# image.repository e image.tag são sobrescritos pelo GitHub Actions
+# durante o deployment.
 
 executor: KubernetesExecutor
 airflowVersion: "2.9.1"
 
 images:
   airflow:
-    repository: PLACEHOLDER # sobrescrito via --set no CI
-    tag: PLACEHOLDER        # sobrescrito via --set no CI
+    repository: PLACEHOLDER
+    tag: PLACEHOLDER
     pullPolicy: IfNotPresent
 
-# Usa a KSA "airflow" que o Terraform e os manifests Kubernetes já criaram
-# e vincularam via Workload Identity à service account do Google Cloud.
+# Usa a Kubernetes Service Account criada pelos manifests do projeto.
+# Ela está vinculada à Google Service Account por Workload Identity.
 serviceAccount:
   create: false
   name: airflow
 
-# As DAGs vêm do próprio repositório por meio do git-sync.
-# Somente a subpasta airflow/dags é utilizada.
+# Sincroniza as DAGs a partir do repositório privado no GitHub.
 dags:
   gitSync:
     enabled: true
@@ -31,28 +32,27 @@ dags:
     sshKeySecret: airflow-git-ssh
     period: 30s
 
-# Banco de metadados PostgreSQL incorporado ao chart.
-# Adequado para desenvolvimento e projetos pequenos.
+# PostgreSQL incorporado ao Helm chart para armazenar os metadados.
 postgresql:
   enabled: true
   image:
     registry: docker.io
     repository: bitnamilegacy/postgresql
 
-# O valor padrão do chart é 100 GiB.
-# Para este projeto, 10 GiB são suficientes para os logs do triggerer.
+# Reduz o volume persistente do triggerer.
+# O padrão de 100 GiB excedia a quota disponível no projeto.
 triggerer:
   persistence:
     enabled: true
     size: 10Gi
 
-# Variáveis de ambiente utilizadas pelas DAGs.
-# O ConfigMap deve fornecer GCP_PROJECT_ID, GCS_BUCKET e BQ_DATASET.
+# ConfigMap com as variáveis utilizadas pelas DAGs:
+# GCP_PROJECT_ID, GCS_BUCKET e BQ_DATASET.
 extraEnvFrom: |
   - configMapRef:
       name: airflow-pipeline-config
 
-# Desativa as DAGs de exemplo.
+# Desativa as DAGs de demonstração incluídas no Airflow.
 config:
   core:
     load_examples: "False"

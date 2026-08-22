@@ -2,6 +2,9 @@ name: Airflow CI
 
 on:
   workflow_call:
+    secrets:
+      SSH_PRIVATE_KEY:
+        required: true
 
 permissions:
   contents: read
@@ -34,21 +37,29 @@ jobs:
           project_id: ${{ vars.GCP_PROJECT_ID }}
 
       - name: Install gke-gcloud-auth-plugin
-        run: gcloud components install gke-gcloud-auth-plugin --quiet
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
 
       - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+        run: |
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 
       - name: Build Airflow image
         working-directory: ./airflow
         run: |
           IMAGE="${REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/airflow:${{ github.sha }}"
+
           docker build -t "$IMAGE" .
+
           echo "AIRFLOW_IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
       - name: Verify Airflow version
         run: |
-          ACTUAL_VERSION="$(docker run --rm "$AIRFLOW_IMAGE" airflow version 2>/dev/null | tail -n 1)"
+          ACTUAL_VERSION="$(
+            docker run --rm "$AIRFLOW_IMAGE" \
+              airflow version 2>/dev/null |
+              tail -n 1
+          )"
 
           echo "Expected Airflow version: $AIRFLOW_VERSION"
           echo "Actual Airflow version:   $ACTUAL_VERSION"
@@ -60,7 +71,8 @@ jobs:
 
       - name: Push Airflow image
         if: github.ref == 'refs/heads/main'
-        run: docker push "$AIRFLOW_IMAGE"
+        run: |
+          docker push "$AIRFLOW_IMAGE"
 
       - name: Get GKE credentials
         if: github.ref == 'refs/heads/main'
@@ -73,7 +85,8 @@ jobs:
       - name: Apply namespace and Kubernetes Service Account
         if: github.ref == 'refs/heads/main'
         run: |
-          sed "s/PROJECT_ID/${GCP_PROJECT_ID}/" k8s/namespace-sa.yaml |
+          sed "s/PROJECT_ID/${GCP_PROJECT_ID}/" \
+            k8s/namespace-sa.yaml |
             kubectl apply -f -
 
       - name: Create ConfigMap with pipeline variables
@@ -90,15 +103,29 @@ jobs:
 
       - name: Create git-sync SSH secret
         if: github.ref == 'refs/heads/main'
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
+          if [[ -z "$SSH_PRIVATE_KEY" ]]; then
+            echo "GitHub Secret SSH_PRIVATE_KEY is not configured." >&2
+            exit 1
+          fi
+
+          umask 077
+
+          KEY_FILE="$(mktemp)"
+          trap 'rm -f "$KEY_FILE"' EXIT
+
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$KEY_FILE"
+
           kubectl create secret generic airflow-git-ssh \
             --namespace airflow \
-            --from-literal=gitSshKey="${{ secrets.SSH_PRIVATE_KEY }}" \
+            --from-file=gitSshKey="$KEY_FILE" \
             --dry-run=client \
             -o yaml |
             kubectl apply -f -
 
-      - name: Add Airflow Helm repo
+      - name: Add Airflow Helm repository
         if: github.ref == 'refs/heads/main'
         run: |
           helm repo add apache-airflow https://airflow.apache.org
@@ -115,7 +142,8 @@ jobs:
             --set images.airflow.repository="${REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/airflow" \
             --set images.airflow.tag="${{ github.sha }}" \
             --timeout 10m0s \
-            2>&1 | tee helm_output.txt
+            2>&1 |
+            tee helm_output.txt
 
       - name: Collect cluster diagnostics
         if: always() && github.ref == 'refs/heads/main'
@@ -133,21 +161,45 @@ jobs:
             kubectl get pvc -n airflow
 
             echo ""
-            echo "events (ultimos 20):"
-            kubectl get events -n airflow \
+            echo "events (last 20):"
+            kubectl get events \
+              -n airflow \
               --sort-by='.lastTimestamp' |
               tail -20
 
             echo ""
-            echo "describe dos pods que nao estao Running:"
+            echo "pods that are not ready:"
 
-            for pod in $(kubectl get pods \
-              -n airflow \
-              --field-selector=status.phase!=Running \
-              -o jsonpath='{.items[*].metadata.name}' \
-              2>/dev/null); do
+            for pod in $(
+              kubectl get pods \
+                -n airflow \
+                -o jsonpath='{range .items[?(@.status.containerStatuses[*].ready==false)]}{.metadata.name}{"\n"}{end}' \
+                2>/dev/null |
+                sort -u
+            ); do
               echo "--- $pod ---"
-              kubectl describe pod "$pod" -n airflow | tail -30
+              kubectl describe pod "$pod" -n airflow | tail -40
+
+              echo ""
+              echo "init-container logs:"
+
+              for container in $(
+                kubectl get pod "$pod" \
+                  -n airflow \
+                  -o jsonpath='{.spec.initContainers[*].name}' \
+                  2>/dev/null
+              ); do
+                echo "--- $pod / $container ---"
+
+                kubectl logs "$pod" \
+                  -n airflow \
+                  -c "$container" \
+                  --previous 2>/dev/null ||
+                  kubectl logs "$pod" \
+                    -n airflow \
+                    -c "$container" 2>/dev/null ||
+                  true
+              done
             done
           } > cluster_diagnostics.txt 2>&1 || true
 
@@ -157,19 +209,19 @@ jobs:
         if: always()
         run: |
           {
-            echo "## Airflow deploy — resumo"
+            echo "## Airflow deploy — summary"
             echo ""
-            echo "**Projeto:** \`${GCP_PROJECT_ID}\`"
+            echo "**Project:** \`${GCP_PROJECT_ID}\`"
             echo "**Branch:** \`${{ github.ref_name }}\`"
             echo "**Airflow:** \`${AIRFLOW_VERSION}\`"
             echo "**Helm chart:** \`${AIRFLOW_CHART_VERSION}\`"
-            echo "**Imagem:** \`${AIRFLOW_IMAGE:-não construída}\`"
+            echo "**Image:** \`${AIRFLOW_IMAGE:-not built}\`"
             echo ""
 
             if [[ -f helm_output.txt ]]; then
-              echo "<details><summary>helm upgrade --install</summary>"
+              echo "<details><summary>Helm deployment</summary>"
               echo ""
-              echo '```'
+              echo '```text'
               tail -n 60 helm_output.txt
               echo '```'
               echo "</details>"
@@ -177,9 +229,9 @@ jobs:
 
             if [[ -f cluster_diagnostics.txt ]]; then
               echo ""
-              echo "<details><summary>Estado do cluster</summary>"
+              echo "<details><summary>Cluster diagnostics</summary>"
               echo ""
-              echo '```'
+              echo '```text'
               cat cluster_diagnostics.txt
               echo '```'
               echo "</details>"
