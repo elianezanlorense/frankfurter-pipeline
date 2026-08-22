@@ -4,21 +4,31 @@ variable "project_id" {
 }
 
 variable "region" {
-  type    = string
-  default = "europe-west1"
+  description = "Região dos recursos do Google Cloud"
+  type        = string
+  default     = "europe-west1"
+}
+
+variable "zone" {
+  description = "Zona do cluster GKE"
+  type        = string
+  default     = "europe-west1-b"
 }
 
 variable "location" {
-  type    = string
-  default = "EU"
+  description = "Localização dos recursos do Google Cloud"
+  type        = string
+  default     = "EU"
 }
 
 variable "data_lake_bucket_name" {
-  type    = string
-  default = "frankfurter-dl"
+  description = "Nome do bucket do Data Lake"
+  type        = string
+  default     = "frankfurter-dl"
 }
 
 variable "bigquery_dataset" {
-  type    = string
-  default = "frankfurter_dev"
+  description = "Nome do dataset do BigQuery"
+  type        = string
+  default     = "frankfurter_dev"
 }

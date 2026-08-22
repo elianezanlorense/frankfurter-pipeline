@@ -16,7 +16,8 @@ jobs:
 
     env:
       GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-      REGION: europe-west1
+      REGION: ${{ vars.GCP_REGION }}
+      ZONE: ${{ vars.GCP_ZONE }}
       USE_GKE_GCLOUD_AUTH_PLUGIN: "True"
       AIRFLOW_VERSION: "2.9.1"
       AIRFLOW_CHART_VERSION: "1.19.0"
@@ -79,7 +80,7 @@ jobs:
         run: |
           gcloud container clusters get-credentials \
             "${GCP_PROJECT_ID}-airflow-gke" \
-            --region "$REGION" \
+            --zone "$ZONE" \
             --project "$GCP_PROJECT_ID"
 
       # ---------------------------------------------------------------------
@@ -97,7 +98,7 @@ jobs:
             STATUS="$(
               gcloud container node-pools describe airflow-pool \
                 --cluster "${GCP_PROJECT_ID}-airflow-gke" \
-                --region "$REGION" \
+                --zone "$ZONE" \
                 --project "$GCP_PROJECT_ID" \
                 --format="value(status)" 2>/dev/null || true
             )"
