@@ -1,5 +1,3 @@
-# .github/workflows/dbt.yml
-
 name: dbt CI
 
 on:
@@ -71,23 +69,32 @@ jobs:
         with:
           project_id: ${{ vars.GCP_PROJECT_ID }}
 
-      - name: Discover Artifact Registry location
+      - name: Discover GCP resource locations
         if: github.ref == 'refs/heads/main'
         run: |
-          ARTIFACT_REGION="$(
-            gcloud artifacts repositories list \
+          GKE_LOCATION="$(
+            gcloud container clusters list \
               --project "$GCP_PROJECT_ID" \
-              --filter="name:dbt-images" \
+              --filter="name=${GCP_PROJECT_ID}-airflow-gke" \
               --format="value(location)" \
               --limit=1
           )"
 
-          if [[ -z "$ARTIFACT_REGION" ]]; then
-            echo "Could not discover the Artifact Registry location." >&2
+          if [[ -z "$GKE_LOCATION" ]]; then
+            echo "Could not discover the GKE cluster location." >&2
             exit 1
           fi
 
+          if [[ "$GKE_LOCATION" =~ -[a-z]$ ]]; then
+            ARTIFACT_REGION="${GKE_LOCATION%-*}"
+          else
+            ARTIFACT_REGION="$GKE_LOCATION"
+          fi
+
+          echo "GKE_LOCATION=$GKE_LOCATION" >> "$GITHUB_ENV"
           echo "ARTIFACT_REGION=$ARTIFACT_REGION" >> "$GITHUB_ENV"
+
+          echo "GKE location: $GKE_LOCATION"
           echo "Artifact Registry region: $ARTIFACT_REGION"
 
       - name: Configure Docker for Artifact Registry
@@ -126,6 +133,8 @@ jobs:
             echo ""
             echo "**Project:** \`${GCP_PROJECT_ID}\`"
             echo "**Branch:** \`${{ github.ref_name }}\`"
+            echo "**GKE location:** \`${GKE_LOCATION:-not discovered}\`"
             echo "**Artifact region:** \`${ARTIFACT_REGION:-not discovered}\`"
-            echo "**Image:** \`${DBT_IMAGE_SHA:-not published}\`"
+            echo "**Commit image:** \`${DBT_IMAGE_SHA:-not published}\`"
+            echo "**Latest image:** \`${DBT_IMAGE_LATEST:-not published}\`"
           } >> "$GITHUB_STEP_SUMMARY"
