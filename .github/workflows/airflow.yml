@@ -94,7 +94,6 @@ jobs:
             --set images.airflow.repository="${REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/airflow" \
             --set images.airflow.tag="${{ github.sha }}" \
             --timeout 10m0s \
-            --wait \
             2>&1 | tee helm_output.txt
 
       # -----------------------------------------------------------------
