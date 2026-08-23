@@ -35,6 +35,29 @@ jobs:
         with:
           project_id: ${{ vars.GCP_PROJECT_ID }}
 
+      # ---------------------------------------------------------------------
+      # Em projetos recém-criados, mesmo que o Terraform já tenha habilitado
+      # container.googleapis.com, a propagação global às vezes leva mais
+      # alguns minutos além do que o próprio apply consegue garantir. Sem
+      # essa espera, o próximo step (Discover GCP resource locations), que
+      # já chama "gcloud container clusters list", pode bater em erro 403
+      # "Kubernetes Engine API has not been used ... or it is disabled",
+      # mesmo a API já estando habilitada de fato.
+      # ---------------------------------------------------------------------
+      - name: Ensure Container API is enabled and propagated
+        run: |
+          gcloud services enable container.googleapis.com --project "$GCP_PROJECT_ID" --quiet
+
+          echo "==> Aguardando propagação da API container.googleapis.com..."
+          for i in $(seq 1 10); do
+            if gcloud container clusters list --project "$GCP_PROJECT_ID" >/dev/null 2>&1; then
+              echo "API disponível (tentativa $i/10)."
+              break
+            fi
+            echo "Tentativa $i/10: API ainda não propagada, aguardando 15s..."
+            sleep 15
+          done
+
       - name: Discover GCP resource locations
         run: |
           GKE_LOCATION="$(
@@ -251,86 +274,3 @@ jobs:
             echo "=== EVENTS ==="
             kubectl get events \
               -n airflow \
-              --sort-by='.lastTimestamp' |
-              tail -40 || true
-
-            echo ""
-            echo "=== INIT CONTAINER LOGS ==="
-
-            for pod_resource in $(kubectl get pods -n airflow -o name); do
-              pod="${pod_resource#pod/}"
-
-              echo ""
-              echo "##### POD: $pod #####"
-
-              init_containers="$(
-                kubectl get pod "$pod" \
-                  -n airflow \
-                  -o jsonpath='{.spec.initContainers[*].name}' \
-                  2>/dev/null
-              )"
-
-              if [[ -z "$init_containers" ]]; then
-                echo "No init containers."
-                continue
-              fi
-
-              for container in $init_containers; do
-                echo ""
-                echo "--- $pod / $container / CURRENT ---"
-
-                kubectl logs "$pod" \
-                  -n airflow \
-                  -c "$container" \
-                  --tail=100 2>&1 ||
-                  true
-
-                echo ""
-                echo "--- $pod / $container / PREVIOUS ---"
-
-                kubectl logs "$pod" \
-                  -n airflow \
-                  -c "$container" \
-                  --previous \
-                  --tail=100 2>&1 ||
-                  true
-              done
-            done
-          } > cluster_diagnostics.txt 2>&1
-
-          cat cluster_diagnostics.txt
-
-      - name: Write step summary
-        if: always()
-        run: |
-          {
-            echo "## Airflow deploy — summary"
-            echo ""
-            echo "**Project:** \`${GCP_PROJECT_ID}\`"
-            echo "**Branch:** \`${{ github.ref_name }}\`"
-            echo "**Airflow:** \`${AIRFLOW_VERSION}\`"
-            echo "**Helm chart:** \`${AIRFLOW_CHART_VERSION}\`"
-            echo "**Artifact region:** \`${ARTIFACT_REGION:-not discovered}\`"
-            echo "**GKE location:** \`${GKE_LOCATION:-not discovered}\`"
-            echo "**Image:** \`${AIRFLOW_IMAGE:-not built}\`"
-            echo ""
-
-            if [[ -f helm_output.txt ]]; then
-              echo "<details><summary>Helm deployment</summary>"
-              echo ""
-              echo '```text'
-              tail -n 60 helm_output.txt
-              echo '```'
-              echo "</details>"
-            fi
-
-            if [[ -f cluster_diagnostics.txt ]]; then
-              echo ""
-              echo "<details><summary>Cluster diagnostics</summary>"
-              echo ""
-              echo '```text'
-              cat cluster_diagnostics.txt
-              echo '```'
-              echo "</details>"
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
