@@ -37,19 +37,38 @@ jobs:
 
       - name: Ensure Container API is enabled and propagated
         run: |
-          gcloud services enable container.googleapis.com --project "$GCP_PROJECT_ID" --quiet
-          echo "==> Aguardando propagação da API container.googleapis.com..."
-          for i in $(seq 1 10); do
-            if gcloud container clusters list --project "$GCP_PROJECT_ID" >/dev/null 2>&1; then
-              echo "API disponível (tentativa $i/10)."
+          set -euo pipefail
+
+          gcloud services enable container.googleapis.com \
+            --project "$GCP_PROJECT_ID" \
+            --quiet
+
+          echo "Waiting for container.googleapis.com..."
+
+          API_AVAILABLE="false"
+
+          for attempt in $(seq 1 10); do
+            if gcloud container clusters list \
+              --project "$GCP_PROJECT_ID" \
+              >/dev/null 2>&1; then
+              echo "Container API available on attempt $attempt/10."
+              API_AVAILABLE="true"
               break
             fi
-            echo "Tentativa $i/10: API ainda não propagada, aguardando 15s..."
+
+            echo "Attempt $attempt/10: API not available yet."
             sleep 15
           done
 
+          if [[ "$API_AVAILABLE" != "true" ]]; then
+            echo "Container API did not become available in time." >&2
+            exit 1
+          fi
+
       - name: Discover GCP resource locations
         run: |
+          set -euo pipefail
+
           GKE_LOCATION="$(
             gcloud container clusters list \
               --project "$GCP_PROJECT_ID" \
@@ -71,15 +90,22 @@ jobs:
 
           echo "GKE_LOCATION=$GKE_LOCATION" >> "$GITHUB_ENV"
           echo "ARTIFACT_REGION=$ARTIFACT_REGION" >> "$GITHUB_ENV"
+
           echo "GKE location: $GKE_LOCATION"
           echo "Artifact Registry region: $ARTIFACT_REGION"
 
       - name: Install gke-gcloud-auth-plugin
         run: |
-          gcloud components install gke-gcloud-auth-plugin --quiet
+          set -euo pipefail
+
+          gcloud components install \
+            gke-gcloud-auth-plugin \
+            --quiet
 
       - name: Configure Docker for Artifact Registry
         run: |
+          set -euo pipefail
+
           gcloud auth configure-docker \
             "${ARTIFACT_REGION}-docker.pkg.dev" \
             --quiet
@@ -87,19 +113,32 @@ jobs:
       - name: Build Airflow image
         working-directory: ./airflow
         run: |
+          set -euo pipefail
+
           IMAGE="${ARTIFACT_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/airflow:${{ github.sha }}"
-          docker build -t "$IMAGE" .
+
+          docker build \
+            --tag "$IMAGE" \
+            .
+
           echo "AIRFLOW_IMAGE=$IMAGE" >> "$GITHUB_ENV"
+          echo "Airflow image: $IMAGE"
 
       - name: Verify Airflow version
         run: |
+          set -euo pipefail
+
           ACTUAL_VERSION="$(
-            docker run --rm "$AIRFLOW_IMAGE" \
+            docker run \
+              --rm \
+              "$AIRFLOW_IMAGE" \
               airflow version 2>/dev/null |
               tail -n 1
           )"
+
           echo "Expected Airflow version: $AIRFLOW_VERSION"
           echo "Actual Airflow version:   $ACTUAL_VERSION"
+
           if [[ "$ACTUAL_VERSION" != "$AIRFLOW_VERSION" ]]; then
             echo "Airflow image version does not match the configured version." >&2
             exit 1
@@ -108,31 +147,44 @@ jobs:
       - name: Push Airflow image
         if: github.ref == 'refs/heads/main'
         run: |
+          set -euo pipefail
+
           docker push "$AIRFLOW_IMAGE"
 
       - name: Wait for cluster to be RUNNING
         if: github.ref == 'refs/heads/main'
         run: |
-          echo "Waiting for cluster ${GCP_PROJECT_ID}-airflow-gke to be RUNNING..."
+          set -euo pipefail
+
+          CLUSTER_NAME="${GCP_PROJECT_ID}-airflow-gke"
           STATUS=""
+
+          echo "Waiting for cluster $CLUSTER_NAME..."
+
           for attempt in $(seq 1 30); do
             STATUS="$(
-              gcloud container clusters describe "${GCP_PROJECT_ID}-airflow-gke" \
+              gcloud container clusters describe "$CLUSTER_NAME" \
                 --location "$GKE_LOCATION" \
                 --project "$GCP_PROJECT_ID" \
-                --format="value(status)" 2>/dev/null ||
+                --format="value(status)" \
+                2>/dev/null ||
                 true
             )"
+
             echo "Attempt $attempt/30: ${STATUS:-not available}"
+
             if [[ "$STATUS" == "RUNNING" ]]; then
               break
             fi
+
             if [[ "$STATUS" == "ERROR" ]]; then
               echo "Cluster entered ERROR state." >&2
               exit 1
             fi
+
             sleep 20
           done
+
           if [[ "$STATUS" != "RUNNING" ]]; then
             echo "Cluster did not become RUNNING in time." >&2
             exit 1
@@ -141,6 +193,8 @@ jobs:
       - name: Get GKE credentials
         if: github.ref == 'refs/heads/main'
         run: |
+          set -euo pipefail
+
           gcloud container clusters get-credentials \
             "${GCP_PROJECT_ID}-airflow-gke" \
             --location "$GKE_LOCATION" \
@@ -149,49 +203,68 @@ jobs:
       - name: Wait for node pool to be ready
         if: github.ref == 'refs/heads/main'
         run: |
-          echo "Waiting for node pool airflow-pool..."
+          set -euo pipefail
+
+          CLUSTER_NAME="${GCP_PROJECT_ID}-airflow-gke"
+          NODE_POOL_NAME="airflow-pool"
           STATUS=""
+
+          echo "Waiting for node pool $NODE_POOL_NAME..."
+
           for attempt in $(seq 1 30); do
             STATUS="$(
-              gcloud container node-pools describe airflow-pool \
-                --cluster "${GCP_PROJECT_ID}-airflow-gke" \
+              gcloud container node-pools describe "$NODE_POOL_NAME" \
+                --cluster "$CLUSTER_NAME" \
                 --location "$GKE_LOCATION" \
                 --project "$GCP_PROJECT_ID" \
-                --format="value(status)" 2>/dev/null ||
+                --format="value(status)" \
+                2>/dev/null ||
                 true
             )"
+
             echo "Attempt $attempt/30: ${STATUS:-not available}"
+
             if [[ "$STATUS" == "RUNNING" ]]; then
               break
             fi
+
             if [[ "$STATUS" == "ERROR" ]]; then
               echo "Node pool entered ERROR state." >&2
               exit 1
             fi
+
             sleep 20
           done
+
           if [[ "$STATUS" != "RUNNING" ]]; then
             echo "Node pool did not become RUNNING in time." >&2
             exit 1
           fi
+
           echo "Waiting for Kubernetes nodes..."
+
           kubectl wait \
             --for=condition=Ready \
             nodes \
             --all \
             --timeout=10m
+
           kubectl get nodes
 
       - name: Apply namespace and Kubernetes Service Account
         if: github.ref == 'refs/heads/main'
         run: |
-          sed "s/PROJECT_ID/${GCP_PROJECT_ID}/" \
+          set -euo pipefail
+
+          sed "s/PROJECT_ID/${GCP_PROJECT_ID}/g" \
             k8s/namespace-sa.yaml |
             kubectl apply -f -
 
       - name: Create ConfigMap with pipeline variables
         if: github.ref == 'refs/heads/main'
         run: |
+          set -euo pipefail
+
           kubectl create configmap airflow-pipeline-config \
             --namespace airflow \
             --from-literal=GCP_PROJECT_ID="${GCP_PROJECT_ID}" \
@@ -199,7 +272,7 @@ jobs:
             --from-literal=BQ_DATASET="frankfurter_dev" \
             --from-literal=ARTIFACT_REGION="${ARTIFACT_REGION}" \
             --dry-run=client \
-            -o yaml |
+            --output=yaml |
             kubectl apply -f -
 
       - name: Create git-sync SSH secret
@@ -207,5 +280,233 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
-          if [[ -z "$SSH_PRIVATE_KEY" ]]; then
-            echo "GitHub Secret
+          set -euo pipefail
+
+          if [[ -z "${SSH_PRIVATE_KEY:-}" ]]; then
+            echo "GitHub Secret SSH_PRIVATE_KEY is not configured." >&2
+            exit 1
+          fi
+
+          umask 077
+          KEY_FILE="$(mktemp)"
+
+          cleanup() {
+            rm -f "$KEY_FILE"
+          }
+
+          trap cleanup EXIT
+
+          printf '%s\n' "$SSH_PRIVATE_KEY" |
+            tr -d '\r' > "$KEY_FILE"
+
+          if ! grep -q "BEGIN OPENSSH PRIVATE KEY" "$KEY_FILE"; then
+            echo "SSH_PRIVATE_KEY is not a valid OpenSSH private key." >&2
+            exit 1
+          fi
+
+          kubectl create secret generic airflow-git-ssh \
+            --namespace airflow \
+            --from-file="gitSshKey=$KEY_FILE" \
+            --dry-run=client \
+            --output=yaml |
+            kubectl apply -f -
+
+      - name: Add Airflow Helm repository
+        if: github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+
+          helm repo add \
+            apache-airflow \
+            https://airflow.apache.org \
+            --force-update
+
+          helm repo update
+
+      - name: Deploy Airflow via Helm
+        if: github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+
+          helm upgrade \
+            --install airflow \
+            apache-airflow/airflow \
+            --namespace airflow \
+            --create-namespace \
+            --version "$AIRFLOW_CHART_VERSION" \
+            --values helm/airflow-values.yaml \
+            --set-string images.airflow.repository="${ARTIFACT_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/airflow" \
+            --set-string images.airflow.tag="${{ github.sha }}" \
+            --timeout 10m0s \
+            2>&1 |
+            tee helm_output.txt
+
+      - name: Collect cluster diagnostics
+        if: always() && github.ref == 'refs/heads/main'
+        run: |
+          {
+            echo "Pods:"
+            kubectl get pods \
+              --namespace airflow \
+              --output=wide
+
+            echo ""
+            echo "Services:"
+            kubectl get services \
+              --namespace airflow
+
+            echo ""
+            echo "Deployments:"
+            kubectl get deployments \
+              --namespace airflow
+
+            echo ""
+            echo "StatefulSets:"
+            kubectl get statefulsets \
+              --namespace airflow
+
+            echo ""
+            echo "Jobs:"
+            kubectl get jobs \
+              --namespace airflow
+
+            echo ""
+            echo "PVCs:"
+            kubectl get pvc \
+              --namespace airflow
+
+            echo ""
+            echo "Recent events:"
+            kubectl get events \
+              --namespace airflow \
+              --sort-by=".lastTimestamp" |
+              tail -n 30
+
+            echo ""
+            echo "Pods that are not ready:"
+
+            for pod in $(
+              kubectl get pods \
+                --namespace airflow \
+                --output=jsonpath='{range .items[*]}{.metadata.name}{" "}{range .status.containerStatuses[*]}{.ready}{" "}{end}{"\n"}{end}' |
+                awk '$0 ~ /false/ {print $1}'
+            ); do
+              echo ""
+              echo "========================================"
+              echo "Pod: $pod"
+              echo "========================================"
+
+              kubectl describe pod "$pod" \
+                --namespace airflow
+
+              echo ""
+              echo "Init container logs:"
+
+              for container in $(
+                kubectl get pod "$pod" \
+                  --namespace airflow \
+                  --output=jsonpath='{.spec.initContainers[*].name}' \
+                  2>/dev/null
+              ); do
+                echo ""
+                echo "--- $pod / $container / current ---"
+
+                kubectl logs "$pod" \
+                  --namespace airflow \
+                  --container "$container" \
+                  2>/dev/null ||
+                  true
+
+                echo ""
+                echo "--- $pod / $container / previous ---"
+
+                kubectl logs "$pod" \
+                  --namespace airflow \
+                  --container "$container" \
+                  --previous \
+                  2>/dev/null ||
+                  true
+              done
+
+              echo ""
+              echo "Application container logs:"
+
+              for container in $(
+                kubectl get pod "$pod" \
+                  --namespace airflow \
+                  --output=jsonpath='{.spec.containers[*].name}' \
+                  2>/dev/null
+              ); do
+                echo ""
+                echo "--- $pod / $container / current ---"
+
+                kubectl logs "$pod" \
+                  --namespace airflow \
+                  --container "$container" \
+                  --tail=100 \
+                  2>/dev/null ||
+                  true
+
+                echo ""
+                echo "--- $pod / $container / previous ---"
+
+                kubectl logs "$pod" \
+                  --namespace airflow \
+                  --container "$container" \
+                  --previous \
+                  --tail=100 \
+                  2>/dev/null ||
+                  true
+              done
+            done
+          } > cluster_diagnostics.txt 2>&1 || true
+
+          cat cluster_diagnostics.txt
+
+      - name: Upload deployment diagnostics
+        if: always() && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: airflow-deployment-diagnostics-${{ github.run_id }}
+          path: |
+            helm_output.txt
+            cluster_diagnostics.txt
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Write step summary
+        if: always()
+        run: |
+          {
+            echo "## Airflow deployment summary"
+            echo ""
+            echo "**Project:** \`${GCP_PROJECT_ID}\`"
+            echo "**Branch:** \`${{ github.ref_name }}\`"
+            echo "**Airflow:** \`${AIRFLOW_VERSION}\`"
+            echo "**Helm chart:** \`${AIRFLOW_CHART_VERSION}\`"
+            echo "**GKE location:** \`${GKE_LOCATION:-not discovered}\`"
+            echo "**Artifact Registry region:** \`${ARTIFACT_REGION:-not discovered}\`"
+            echo "**Image:** \`${AIRFLOW_IMAGE:-not built}\`"
+            echo ""
+
+            if [[ -f helm_output.txt ]]; then
+              echo "<details>"
+              echo "<summary>Helm deployment</summary>"
+              echo ""
+              echo '```text'
+              tail -n 100 helm_output.txt
+              echo '```'
+              echo "</details>"
+            fi
+
+            if [[ -f cluster_diagnostics.txt ]]; then
+              echo ""
+              echo "<details>"
+              echo "<summary>Cluster diagnostics</summary>"
+              echo ""
+              echo '```text'
+              tail -n 300 cluster_diagnostics.txt
+              echo '```'
+              echo "</details>"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
