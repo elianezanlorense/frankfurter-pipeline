@@ -343,20 +343,6 @@ jobs:
             2>&1 |
             tee helm_output.txt
 
-      - name: Restart Airflow workloads
-        if: github.ref == 'refs/heads/main'
-        run: |
-          set -euo pipefail
-
-          kubectl rollout restart deployment/airflow-scheduler \
-            --namespace airflow
-
-          kubectl rollout restart deployment/airflow-webserver \
-            --namespace airflow
-
-          kubectl rollout restart statefulset/airflow-triggerer \
-            --namespace airflow
-
       - name: Wait for Airflow workloads
         if: github.ref == 'refs/heads/main'
         run: |
@@ -364,15 +350,15 @@ jobs:
 
           kubectl rollout status deployment/airflow-scheduler \
             --namespace airflow \
-            --timeout=10m
+            --timeout=15m
 
           kubectl rollout status deployment/airflow-webserver \
             --namespace airflow \
-            --timeout=10m
+            --timeout=15m
 
           kubectl rollout status statefulset/airflow-triggerer \
             --namespace airflow \
-            --timeout=10m
+            --timeout=15m
 
           kubectl get pods \
             --namespace airflow \
@@ -436,44 +422,65 @@ jobs:
         run: |
           {
             echo "Pods:"
+
             kubectl get pods \
               --namespace airflow \
               --output=wide
 
             echo ""
             echo "Services:"
+
             kubectl get services \
               --namespace airflow
 
             echo ""
             echo "Deployments:"
+
             kubectl get deployments \
               --namespace airflow
 
             echo ""
             echo "StatefulSets:"
+
             kubectl get statefulsets \
               --namespace airflow
 
             echo ""
             echo "Jobs:"
+
             kubectl get jobs \
               --namespace airflow
 
             echo ""
             echo "PVCs:"
+
             kubectl get pvc \
               --namespace airflow
 
             echo ""
+            echo "Node resources:"
+
+            kubectl top nodes 2>/dev/null ||
+              true
+
+            echo ""
+            echo "Airflow pod resources:"
+
+            kubectl top pods \
+              --namespace airflow \
+              2>/dev/null ||
+              true
+
+            echo ""
             echo "Recent events:"
+
             kubectl get events \
               --namespace airflow \
               --sort-by=".lastTimestamp" |
-              tail -n 30
+              tail -n 40
 
             echo ""
-            echo "All non-ready pod logs:"
+            echo "Non-ready pod diagnostics:"
 
             for pod in $(
               kubectl get pods \
