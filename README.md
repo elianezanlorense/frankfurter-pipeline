@@ -1,12 +1,14 @@
 # 🚀 Frankfurter Pipeline
 
-##  Objective
+##  Objective.
 
 gcloud config get-value project
- cluster name:gcloud container clusters list \
+
+ #cluster name:
+ gcloud container clusters list \
   --region europe-west1 \
   --project zoocamp-project-914584
-connect with cluster:
+#connect with cluster:
   gcloud container clusters get-credentials \
   zoocamp-project-914584-airflow-gke \
   --region europe-west1 \
@@ -35,6 +37,17 @@ POD=$(kubectl get pods -n airflow -o name | grep airflow-scheduler | head -n 1)
 echo "$POD"
 
 kubectl get "$POD" -n airflow -o jsonpath='{.spec.initContainers[*].name}{"\n"}'
+
+kubectl logs "$POD" -n airflow -c wait-for-airflow-migrations --previous
+
+helm list -n airflow
+
+kubectl get events -n airflow --sort-by=.lastTimestamp | tail -n 30
+helm get hooks airflow -n airflow | grep -E 'kind: Job|name:.*migration|name:.*migrate|helm.sh/hook'
+helm get values airflow -n airflow
+helm repo list
+helm upgrade airflow apache-airflow/airflow -n airflow --version 1.22.0 --reuse-values --timeout 15m
+gcloud compute disks list --project zoocamp-project-914584 --filter="zone~europe-west1-.*" --format="table(name,zone.basename(),sizeGb,status)"
 
 This project builds an **end-to-end batch data pipeline** using exchange rate data from the Frankfurter API.
 

@@ -79,3 +79,12 @@ grep -RIn --exclude-dir=.terraform "zoocamp-project" .
 ./.github/workflows/dbt.yml:80:          IMAGE="europe-west1-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/dbt:${{ github.sha }}"
 ./.github/workflows/dbt.yml:81:          docker build -t "$IMAGE" -t "europe-west1-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/dbt:latest" .
 ./.github/workflows/dbt.yml:88:          docker push "europe-west1-docker.pkg.dev/${GCP_PROJECT_ID}/dbt-images/dbt:latest"
+
+
+#list container
+gcloud container clusters list
+
+
+gcloud container clusters delete zoocamp-project-998630-airflow-gke --zone europe-west1-b
+
+gcloud projects delete zoocamp-project-998630
