@@ -1,5 +1,6 @@
 # Helm values para o chart oficial apache-airflow/airflow.
-# Compatível com:
+#
+# Compatibilidade:
 #   Airflow: 2.9.1
 #   Helm chart: 1.19.0
 
@@ -13,10 +14,12 @@ images:
     tag: PLACEHOLDER
     pullPolicy: IfNotPresent
 
+# Usa a Kubernetes Service Account criada pelo Terraform/manifests.
 serviceAccount:
   create: false
   name: airflow
 
+# Sincroniza as DAGs diretamente do repositório.
 dags:
   gitSync:
     enabled: true
@@ -26,6 +29,7 @@ dags:
     sshKeySecret: airflow-git-ssh
     period: 30s
 
+# PostgreSQL utilizado como banco de metadados do Airflow.
 postgresql:
   enabled: true
 
@@ -33,6 +37,7 @@ postgresql:
     registry: docker.io
     repository: bitnamilegacy/postgresql
 
+# Interface web do Airflow.
 webserver:
   resources:
     requests:
@@ -42,9 +47,33 @@ webserver:
       cpu: "1"
       memory: 2Gi
 
+  # O webserver estava sendo reiniciado depois de apenas 60 segundos.
+  # Agora ele terá até aproximadamente 5 minutos para iniciar.
+  startupProbe:
+    initialDelaySeconds: 30
+    timeoutSeconds: 20
+    failureThreshold: 30
+    periodSeconds: 10
+    scheme: HTTP
+
+  readinessProbe:
+    initialDelaySeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 12
+    periodSeconds: 10
+    scheme: HTTP
+
+  livenessProbe:
+    initialDelaySeconds: 60
+    timeoutSeconds: 10
+    failureThreshold: 6
+    periodSeconds: 10
+    scheme: HTTP
+
   service:
     type: LoadBalancer
 
+# Scheduler principal do Airflow.
 scheduler:
   resources:
     requests:
@@ -54,6 +83,19 @@ scheduler:
       cpu: "1"
       memory: 1536Mi
 
+  startupProbe:
+    initialDelaySeconds: 30
+    timeoutSeconds: 20
+    failureThreshold: 30
+    periodSeconds: 10
+
+  livenessProbe:
+    initialDelaySeconds: 60
+    timeoutSeconds: 20
+    failureThreshold: 6
+    periodSeconds: 20
+
+# Triggerer utilizado por tarefas deferrable.
 triggerer:
   resources:
     requests:
@@ -67,6 +109,7 @@ triggerer:
     enabled: true
     size: 10Gi
 
+# Coleta de métricas do Airflow.
 statsd:
   resources:
     requests:
@@ -76,6 +119,7 @@ statsd:
       cpu: 250m
       memory: 256Mi
 
+# Importa as variáveis do ConfigMap criado no workflow.
 extraEnvFrom: |
   - configMapRef:
       name: airflow-pipeline-config
