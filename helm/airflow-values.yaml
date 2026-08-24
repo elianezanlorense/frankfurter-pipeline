@@ -1,14 +1,11 @@
-# values.yaml para o Helm chart oficial do Apache Airflow.
-#
-# Compatibilidade:
-#   Apache Airflow: 2.9.1
-#   Helm chart:     1.19.0
-#
-# image.repository e image.tag são sobrescritos pelo GitHub Actions
-# durante o deployment.
+# Helm values para o chart oficial apache-airflow/airflow.
+# Compatível com:
+#   Airflow: 2.9.1
+#   Helm chart: 1.19.0
+
+airflowVersion: "2.9.1"
 
 executor: KubernetesExecutor
-airflowVersion: "2.9.1"
 
 images:
   airflow:
@@ -16,13 +13,10 @@ images:
     tag: PLACEHOLDER
     pullPolicy: IfNotPresent
 
-# Usa a Kubernetes Service Account criada pelos manifests do projeto.
-# Ela está vinculada à Google Service Account por Workload Identity.
 serviceAccount:
   create: false
   name: airflow
 
-# Sincroniza as DAGs a partir do repositório privado no GitHub.
 dags:
   gitSync:
     enabled: true
@@ -32,32 +26,64 @@ dags:
     sshKeySecret: airflow-git-ssh
     period: 30s
 
-# PostgreSQL incorporado ao Helm chart para armazenar os metadados.
 postgresql:
   enabled: true
+
   image:
     registry: docker.io
     repository: bitnamilegacy/postgresql
 
-# Reduz o volume persistente do triggerer.
-# O padrão de 100 GiB excedia a quota disponível no projeto.
+webserver:
+  resources:
+    requests:
+      cpu: 250m
+      memory: 1Gi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+
+  service:
+    type: LoadBalancer
+
+scheduler:
+  resources:
+    requests:
+      cpu: 250m
+      memory: 768Mi
+    limits:
+      cpu: "1"
+      memory: 1536Mi
+
 triggerer:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
   persistence:
     enabled: true
     size: 10Gi
 
-# ConfigMap com as variáveis utilizadas pelas DAGs:
-# GCP_PROJECT_ID, GCS_BUCKET e BQ_DATASET.
+statsd:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
 extraEnvFrom: |
   - configMapRef:
       name: airflow-pipeline-config
 
-# Desativa as DAGs de demonstração incluídas no Airflow.
 config:
   core:
     load_examples: "False"
 
-# Expõe a interface web do Airflow por meio de um LoadBalancer.
-webserver:
-  service:
-    type: LoadBalancer
+  logging:
+    remote_logging: "True"
+    remote_log_conn_id: "google_cloud_default"
