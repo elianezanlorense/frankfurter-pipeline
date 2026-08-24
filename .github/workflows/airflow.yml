@@ -241,8 +241,6 @@ jobs:
             exit 1
           fi
 
-          echo "Waiting for Kubernetes nodes..."
-
           kubectl wait \
             --for=condition=Ready \
             nodes \
@@ -380,6 +378,59 @@ jobs:
             --namespace airflow \
             --output=wide
 
+      - name: Collect webserver logs
+        if: always() && github.ref == 'refs/heads/main'
+        run: |
+          {
+            echo "Airflow webserver pods:"
+
+            kubectl get pods \
+              --namespace airflow \
+              --selector component=webserver \
+              --output=wide
+
+            for pod in $(
+              kubectl get pods \
+                --namespace airflow \
+                --selector component=webserver \
+                --output=jsonpath='{.items[*].metadata.name}'
+            ); do
+              echo ""
+              echo "========================================"
+              echo "Webserver pod: $pod"
+              echo "========================================"
+
+              echo ""
+              echo "Current logs:"
+
+              kubectl logs "$pod" \
+                --namespace airflow \
+                --container webserver \
+                --tail=300 \
+                2>&1 ||
+                true
+
+              echo ""
+              echo "Previous logs:"
+
+              kubectl logs "$pod" \
+                --namespace airflow \
+                --container webserver \
+                --previous \
+                --tail=300 \
+                2>&1 ||
+                true
+
+              echo ""
+              echo "Pod description:"
+
+              kubectl describe pod "$pod" \
+                --namespace airflow \
+                2>&1 ||
+                true
+            done
+          } | tee webserver_logs.txt
+
       - name: Collect cluster diagnostics
         if: always() && github.ref == 'refs/heads/main'
         run: |
@@ -422,13 +473,13 @@ jobs:
               tail -n 30
 
             echo ""
-            echo "Pods that are not ready:"
+            echo "All non-ready pod logs:"
 
             for pod in $(
               kubectl get pods \
                 --namespace airflow \
                 --output=jsonpath='{range .items[*]}{.metadata.name}{" "}{range .status.containerStatuses[*]}{.ready}{" "}{end}{"\n"}{end}' |
-                awk '$0 ~ /false/ {printend $1}'
+                awk '$0 ~ /false/ {print $1}'
             ); do
               echo ""
               echo "========================================"
@@ -482,7 +533,7 @@ jobs:
                 kubectl logs "$pod" \
                   --namespace airflow \
                   --container "$container" \
-                  --tail=100 \
+                  --tail=300 \
                   2>/dev/null ||
                   true
 
@@ -493,7 +544,7 @@ jobs:
                   --namespace airflow \
                   --container "$container" \
                   --previous \
-                  --tail=100 \
+                  --tail=300 \
                   2>/dev/null ||
                   true
               done
@@ -509,6 +560,7 @@ jobs:
           name: airflow-deployment-diagnostics-${{ github.run_id }}
           path: |
             helm_output.txt
+            webserver_logs.txt
             cluster_diagnostics.txt
           if-no-files-found: ignore
           retention-days: 7
@@ -538,13 +590,24 @@ jobs:
               echo "</details>"
             fi
 
+            if [[ -f webserver_logs.txt ]]; then
+              echo ""
+              echo "<details>"
+              echo "<summary>Webserver logs</summary>"
+              echo ""
+              echo '```text'
+              tail -n 500 webserver_logs.txt
+              echo '```'
+              echo "</details>"
+            fi
+
             if [[ -f cluster_diagnostics.txt ]]; then
               echo ""
               echo "<details>"
               echo "<summary>Cluster diagnostics</summary>"
               echo ""
               echo '```text'
-              tail -n 300 cluster_diagnostics.txt
+              tail -n 500 cluster_diagnostics.txt
               echo '```'
               echo "</details>"
             fi
