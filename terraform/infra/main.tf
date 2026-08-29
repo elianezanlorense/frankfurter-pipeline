@@ -251,3 +251,9 @@ resource "google_project_iam_member" "airflow_gke_sa_storage_viewer" {
   role    = "roles/storage.objectViewer"
   member  = "serviceAccount:${google_service_account.airflow_gke_sa.email}"
 }
+
+resource "google_storage_bucket_iam_member" "airflow_bucket_reader" {
+  bucket = google_storage_bucket.data_lake.name
+  role   = "roles/storage.legacyBucketReader"
+  member = "serviceAccount:${google_service_account.airflow_gke_sa.email}"
+}
