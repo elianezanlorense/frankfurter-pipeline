@@ -245,3 +245,9 @@ resource "google_artifact_registry_repository_iam_member" "airflow_gke_sa_reader
   role       = "roles/artifactregistry.reader"
   member     = "serviceAccount:${google_service_account.airflow_gke_sa.email}"
 }
+
+resource "google_project_iam_member" "airflow_gke_sa_storage_viewer" {
+  project = var.project_id
+  role    = "roles/storage.objectViewer"
+  member  = "serviceAccount:${google_service_account.airflow_gke_sa.email}"
+}
