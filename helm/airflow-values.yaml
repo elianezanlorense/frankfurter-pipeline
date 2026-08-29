@@ -8,16 +8,23 @@ airflowVersion: "2.9.1"
 
 executor: KubernetesExecutor
 
+# O workflow substitui repository e tag durante o helm upgrade.
 images:
   airflow:
     repository: PLACEHOLDER
     tag: PLACEHOLDER
     pullPolicy: IfNotPresent
 
-# Usa a Kubernetes Service Account criada pelo Terraform/manifests.
+# Service Account principal do Airflow.
 serviceAccount:
   create: false
   name: airflow
+
+# Pods criados pelo KubernetesExecutor.
+workers:
+  serviceAccount:
+    create: false
+    name: airflow
 
 # Sincroniza as DAGs diretamente do repositório.
 dags:
@@ -28,6 +35,7 @@ dags:
     subPath: "airflow/dags"
     sshKeySecret: airflow-git-ssh
     period: 30s
+
     resources:
       requests:
         cpu: 20m
@@ -67,8 +75,6 @@ webserver:
       cpu: "1"
       memory: 1Gi
 
-  # O webserver estava sendo reiniciado depois de apenas 60 segundos.
-  # Agora ele terá até aproximadamente 5 minutos para iniciar.
   startupProbe:
     initialDelaySeconds: 30
     timeoutSeconds: 45
@@ -143,11 +149,11 @@ triggerer:
     enabled: true
     size: 10Gi
 
-# Coleta de métricas do Airflow — desativado para economizar CPU no trial.
+# Métricas desativadas para economizar recursos no cluster.
 statsd:
   enabled: false
 
-# Importa as variáveis do ConfigMap criado no workflow.
+# Importa configurações dinâmicas criadas pelo workflow.
 extraEnvFrom: |
   - configMapRef:
       name: airflow-pipeline-config
